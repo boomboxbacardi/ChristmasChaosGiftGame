@@ -149,9 +149,8 @@ export const messages: Record<Lang, Record<string, string>> = {
   },
   sv: {
     "ui.hero.title": "Christmas Chaos Game",
-    "ui.hero.eyebrow": "Snabbt, rättvist och kaosartat",
-    "ui.hero.subtitle":
-      "Mörkt läge med tärningskaos. Alla får lika många kast, slumpen styr dramat.",
+    "ui.hero.eyebrow": "Julklappsleken fast kaos",
+    "ui.hero.subtitle": "Julklappsleken med kast där slumpen styr dramat!",
     "ui.setup.title": "Spelare & Paket",
     "ui.setup.hint": "",
     "ui.setup.playerPlaceholder": "Spelare {num}",
