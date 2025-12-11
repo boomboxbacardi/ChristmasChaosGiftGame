@@ -1,4 +1,4 @@
-import { GamePhase, Player } from '../types/game'
+import { GamePhase, Player } from '../../types/game'
 
 type ActionTable = Record<
   number,

@@ -1,5 +1,4 @@
-import { Pill } from '../atoms/Pill'
-import { Stat } from '../atoms/Stat'
+import { Pill, Stat } from '../atoms'
 
 type StatusStripProps = {
   phaseLabel: string

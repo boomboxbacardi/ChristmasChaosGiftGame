@@ -1,4 +1,4 @@
-import { Player } from '../types/game'
+import { Player } from '../../types/game'
 
 type Props = {
   players: Player[]

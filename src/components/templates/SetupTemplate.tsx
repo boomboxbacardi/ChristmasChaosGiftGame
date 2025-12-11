@@ -1,8 +1,6 @@
 import { ReactNode } from 'react'
-import { HeroHeader } from '../molecules/HeroHeader'
-import { SectionHeader } from '../atoms/SectionHeader'
-import { SetupList } from '../molecules/SetupList'
-import { OrderModal } from '../molecules/OrderModal'
+import { SectionHeader } from '../atoms'
+import { HeroHeader, OrderModal, SetupList } from '../molecules'
 
 type SetupTemplateProps = {
   eyebrow: string

@@ -212,6 +212,23 @@
   border-color: var(--endgame-border);
   background: var(--endgame-surface);
 }
+[data-theme='holiday'] .endgame .player-row.active {
+  background: linear-gradient(
+    90deg,
+    rgba(194, 39, 45, 0.16),
+    rgba(45, 122, 75, 0.14)
+  );
+  border-color: color-mix(in srgb, var(--endgame-border) 70%, var(--accent-hot) 30%);
+  box-shadow: 0 0 0 1px var(--accent-border-strong), var(--endgame-glow);
+}
+[data-theme='holiday'] .endgame .player-row.active .player-name {
+  color: var(--accent-hot);
+  font-weight: 700;
+}
+[data-theme='holiday'] .endgame .player-row.active .player-name::after {
+  content: ' 🎯';
+  font-size: 14px;
+}
 
 .gifts {
   display: flex;

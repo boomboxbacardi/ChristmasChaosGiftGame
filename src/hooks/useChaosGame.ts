@@ -801,14 +801,24 @@ export const useChaosGame = () => {
               idx !== currentPlayerIndex &&
               player.packages.some((pkg) => !pkg.locked)
           );
-        setStealTarget(null);
-        setStealActorName(currentPlayer.name);
-        setShowStealModal(true);
-        modalQueued = true;
-        stealTargetPlayer = await runTargetRandomization(
-          stealablePlayers,
-          true
-        );
+        if (stealablePlayers.length === 1) {
+          const [onlyTarget] = stealablePlayers;
+          setStealTarget(onlyTarget.player.name);
+          setStealActorName(currentPlayer.name);
+          setShowStealModal(true);
+          setIsRandomizingTarget(false);
+          modalQueued = true;
+          stealTargetPlayer = onlyTarget;
+        } else if (stealablePlayers.length) {
+          setStealTarget(null);
+          setStealActorName(currentPlayer.name);
+          setShowStealModal(true);
+          modalQueued = true;
+          stealTargetPlayer = await runTargetRandomization(
+            stealablePlayers,
+            true
+          );
+        }
       }
 
       if (phase === "warmup") {
@@ -861,7 +871,19 @@ export const useChaosGame = () => {
             .map((p, idx) => ({ player: p, idx }))
             .filter((_, idx) => idx !== currentPlayerIndex)
             .filter(({ player }) => player.packages.length > 0);
-          if (targets.length) {
+          if (targets.length === 1) {
+            const [onlyTarget] = targets;
+            setSelectionTitle(outcomeTable[roll].title);
+            setSelectionVerb(t("ui.modal.flipVerb"));
+            setSelectionActorName(currentPlayer.name);
+            setSelectionLeadEmoji("");
+            setSelectionTrailEmoji("🎁🔄");
+            setSelectionTarget(onlyTarget.player.name);
+            setShowSelectionModal(true);
+            setIsRandomizingSelection(false);
+            modalQueued = true;
+            flipTargetIndex = onlyTarget.idx;
+          } else if (targets.length) {
             modalQueued = true;
             const choice = await runSelectionRandomization(targets, {
               title: outcomeTable[roll].title,
@@ -915,7 +937,19 @@ export const useChaosGame = () => {
           const targets = updatedPlayers
             .map((p, idx) => ({ player: p, idx }))
             .filter((_, idx) => idx !== currentPlayerIndex);
-          if (targets.length) {
+          if (targets.length === 1) {
+            const [onlyTarget] = targets;
+            setSelectionTitle(outcomeTable[roll].title);
+            setSelectionVerb(t("ui.modal.santaVerb"));
+            setSelectionActorName(onlyTarget.player.name);
+            setSelectionLeadEmoji("");
+            setSelectionTrailEmoji("🎁🎅🫳");
+            setSelectionTarget(currentPlayer.name);
+            setShowSelectionModal(true);
+            setIsRandomizingSelection(false);
+            modalQueued = true;
+            santaTargetIndex = onlyTarget.idx;
+          } else if (targets.length) {
             modalQueued = true;
             const choice = await runSelectionRandomization(targets, {
               title: outcomeTable[roll].title,

@@ -1,4 +1,4 @@
-import { LogEntry } from '../types/game'
+import { LogEntry } from '../../types/game'
 
 type Props = {
   log: LogEntry[]
