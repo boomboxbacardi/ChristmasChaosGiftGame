@@ -32,6 +32,7 @@ type GameTemplateProps = {
   logTitle: string
   logSubtitle: string
   logEmptyLabel: string
+  showLog?: boolean
   randomizer: {
     phase: GamePhase
     phaseTable: Record<number, { title: string; description: string }>
@@ -88,8 +89,12 @@ type GameTemplateProps = {
     isOpen: boolean
     title: string
     narrative: string
-    closeLabel: string
-    onClose: () => void
+    placeholder: string
+    roller?: {
+      label: string
+      trail: string[]
+      isRunning: boolean
+    }
   }
   selectionModal: {
     isOpen: boolean
@@ -128,6 +133,7 @@ export const GameTemplate = ({
   logTitle,
   logSubtitle,
   logEmptyLabel,
+  showLog = false,
   randomizer,
   lastRoll,
   rules,
@@ -152,6 +158,14 @@ export const GameTemplate = ({
       totalRolls={status.totalRolls}
     />
 
+    <ActionNarrativeModal
+      isOpen={narrativeModal.isOpen}
+      title={narrativeModal.title}
+      narrative={narrativeModal.narrative}
+      placeholder={narrativeModal.placeholder}
+      roller={narrativeModal.roller}
+    />
+
     <section className="layout">
       <div className="left-panel">
         <PlayerListPanel
@@ -162,7 +176,9 @@ export const GameTemplate = ({
           legend={playerLegend}
           emptyLabel={playerEmptyLabel}
         />
-        <LogPanel log={log} title={logTitle} subtitle={logSubtitle} emptyLabel={logEmptyLabel} />
+        {showLog && (
+          <LogPanel log={log} title={logTitle} subtitle={logSubtitle} emptyLabel={logEmptyLabel} />
+        )}
       </div>
 
       <div className="right-panel">
@@ -223,14 +239,6 @@ export const GameTemplate = ({
         closeLabel={stealModal.closeLabel}
       />
     )}
-
-    <ActionNarrativeModal
-      isOpen={narrativeModal.isOpen}
-      title={narrativeModal.title}
-      narrative={narrativeModal.narrative}
-      onClose={narrativeModal.onClose}
-      closeLabel={narrativeModal.closeLabel}
-    />
 
     <TargetSelectionModal
       isOpen={selectionModal.isOpen}

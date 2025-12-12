@@ -163,6 +163,7 @@ export const GamePage = () => {
       logTitle={isHoliday ? `${t('ui.log.title')} 📜` : t('ui.log.title')}
       logSubtitle={t('ui.log.subtitle')}
       logEmptyLabel={t('ui.log.empty')}
+      showLog={game.debugMode}
       randomizer={{
         phase: game.phase,
         phaseTable: game.phaseTable,
@@ -215,8 +216,8 @@ export const GamePage = () => {
         isOpen: game.showNarrativeModal,
         title: game.narrativeTitle,
         narrative: game.narrativeBody,
-        closeLabel: t('ui.modal.close'),
-        onClose: game.handleCloseNarrativeModal,
+        placeholder: t('ui.narrative.placeholder'),
+        roller: game.narrativeRoll,
       }}
       selectionModal={{
         isOpen: game.showSelectionModal,

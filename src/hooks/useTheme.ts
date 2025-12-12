@@ -14,11 +14,11 @@ const setDocumentTheme = (theme: Theme) => {
 };
 
 const getStoredTheme = (): Theme => {
-  if (typeof window === "undefined") return "holiday";
+  if (typeof window === "undefined") return "default";
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored === "holiday") return "holiday";
   if (stored === "default") return "default";
-  return "holiday";
+  return "default";
 };
 
 export const useTheme = () => {

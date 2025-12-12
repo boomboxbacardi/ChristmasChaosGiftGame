@@ -60,6 +60,7 @@ export const messages: Record<Lang, Record<string, string>> = {
     "ui.modal.santaVerb": "gets to pick any gift from",
     "ui.modal.twistVerb": "rotates all gifts to",
     "ui.modal.close": "Close",
+    "ui.narrative.placeholder": "Waiting for the next action…",
 
     // Action titles/descriptions
     "actions.warmup.1.title": "Double Grab",
@@ -102,6 +103,11 @@ export const messages: Record<Lang, Record<string, string>> = {
     "narr.warmup.6": "Everyone sends their largest gift to the left 🫸 🎁 🫷",
 
     "narr.endgame.1": "{actor} freezes any gift and keeps it permanently. 🥶🧊",
+    "narr.endgame.2": "{actor} swaps all unlocked gifts with {target}. 🔄🎁",
+    "narr.endgame.3": "{actor} trades unwanted gifts with {target}. ♻️🎁",
+    "narr.endgame.4": "{a} and {b} swap a gift each. 🎭🎁",
+    "narr.endgame.5": "{target} picks a gift from {actor}. 🎅🫳🎁",
+    "narr.endgame.6": "Gifts rotate {dir}! 🔄🎁",
 
     // Logs
     "log.warmup.1": "{actor} takes {count} from the pile.",
@@ -198,6 +204,7 @@ export const messages: Record<Lang, Record<string, string>> = {
     "ui.modal.santaVerb": "får välja ett valfritt paket från",
     "ui.modal.twistVerb": "roterar alla paket åt",
     "ui.modal.close": "Stäng",
+    "ui.narrative.placeholder": "Väntar på nästa händelse…",
 
     // Actions
     "actions.warmup.1.title": "Dubbelt Upp!",
@@ -217,23 +224,20 @@ export const messages: Record<Lang, Record<string, string>> = {
       "Skicka ditt största olåsta paket till vänster 🫸🎁🫷",
 
     "actions.endgame.1.title": "Ice Lock",
-    "actions.endgame.1.desc":
-      "Frys ett paket. Frusna paket kan inte bytas, stjälas, ges bort eller roteras. 🥶🧊",
+    "actions.endgame.1.desc": "Frys ett valfritt paket. 🥶🧊",
     "actions.endgame.2.title": "Full Flip",
     "actions.endgame.2.desc":
-      "Byt alla olåsta paket med en slumpmässig spelare. Frusna paket ligger kvar. 🔄🎁",
+      "Byt alla dina paket med en slumpmässig spelare. 🔄",
     "actions.endgame.3.title": "Trash Trade",
-    "actions.endgame.3.desc":
-      "Två spelare väljer varsitt oönskat paket (om det finns) och byter med varandra 🗑️🎁↔️",
+    "actions.endgame.3.desc": "Två spelare byter oönskade paket 🗑️",
     "actions.endgame.4.title": "Joker Swap",
     "actions.endgame.4.desc":
-      "Två spelare väljer varsitt valfritt paket (om det finns) från den andre och byter. 🎭🎁↔️",
+      "Två spelare väljer varsitt valfritt paket från den andre och byter. 🎭",
     "actions.endgame.5.title": "Santa's Hand",
-    "actions.endgame.5.desc":
-      "Ge bort ett paket som en annan spelare får välja 🫳🎁",
+    "actions.endgame.5.desc": "Du måste ge bort ett valfritt paket 🎅🫳",
     "actions.endgame.6.title": "Twist of Fate",
     "actions.endgame.6.desc":
-      "Alla roterar samtliga paket ett steg vänster eller höger 🎁🔄",
+      "Alla roterar sina paket ett steg vänster eller höger 🔮",
 
     // Narratives
     "narr.warmup.1": "{actor} tar {count} paket från högen 🎁",
@@ -244,7 +248,16 @@ export const messages: Record<Lang, Record<string, string>> = {
     "narr.warmup.6": "Alla skickar sitt största paket till vänster 🫸 🎁 🫷",
 
     "narr.endgame.1":
-      "{actor} fryser ett valfritt paket och behåller det permanent. 🥶🧊",
+      "{actor} fryser ett valfritt paket och behåller det permanent tills spelets slut. 🥶🧊",
+    "narr.endgame.2":
+      "{actor} byter alla paket med {target}. Frusna paket ligger kvar hos ägaren. 🔄",
+    "narr.endgame.3":
+      "{actor} & {target} väljer varsitt oönskat paket och byter med varandra. Har du inget paket så tar du utan att ge! ♻️",
+    "narr.endgame.4":
+      "{a} och {b} väljer ett varsitt paket från den andre och byter. Har du inget paket så tar du utan att ge! 🎭",
+    "narr.endgame.5":
+      "{actor} tvingas ge bort ett paket till {target} som får välja fritt! 🎅🫳",
+    "narr.endgame.6": "Alla byter paket! Rotera alla dina paket åt {dir}! 🔮",
 
     // Logs
     "log.warmup.1": "{actor} tar {count} från högen.",

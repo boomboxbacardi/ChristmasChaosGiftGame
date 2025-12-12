@@ -305,6 +305,10 @@ export const applyEndgameRoll = (
         target: target.player.name,
       }),
     });
+    narrative = t("narr.endgame.2", {
+      actor: actor.name,
+      target: target.player.name,
+    });
     return { players: updatedPlayers, pile, logEntries: entries, narrative };
   }
 
@@ -363,6 +367,10 @@ export const applyEndgameRoll = (
         }),
       });
     }
+    narrative = t("narr.endgame.3", {
+      actor: actor.name,
+      target: target.player.name,
+    });
     return { players: updatedPlayers, pile, logEntries: entries, narrative };
   }
 
@@ -436,6 +444,10 @@ export const applyEndgameRoll = (
         b: second.player.name,
       }),
     });
+    narrative = t("narr.endgame.4", {
+      a: first.player.name,
+      b: second.player.name,
+    });
     return { players: updatedPlayers, pile, logEntries: entries, narrative };
   }
 
@@ -463,6 +475,10 @@ export const applyEndgameRoll = (
         target: target.player.name,
         actor: actor.name,
       }),
+    });
+    narrative = t("narr.endgame.5", {
+      actor: actor.name,
+      target: target.player.name,
     });
     return { players: updatedPlayers, pile, logEntries: entries, narrative };
   }
@@ -492,5 +508,6 @@ export const applyEndgameRoll = (
     id: uid(),
     message: t("log.endgame.twist", { dir: directionLabel }),
   });
+  narrative = t("narr.endgame.6", { dir: directionLabel });
   return { players: cloned, pile, logEntries: entries, narrative };
 };

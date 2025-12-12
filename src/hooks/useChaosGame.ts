@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ENDGAME_ROLLS,
   PACKAGES_PER_PLAYER,
@@ -23,7 +23,6 @@ const STORAGE_KEY = "chaos-christmas-game-v1";
 const LANG_KEY = "chaos-lang";
 const RANDOMIZER_TOTAL_MS = 5000;
 const DEBUG_RANDOMIZER_TOTAL_MS = 500;
-const MAX_SPIN_STEPS = 60;
 
 const wait = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -31,11 +30,15 @@ const wait = (ms: number) =>
 const getRandomizerTotal = (isDebug: boolean) =>
   isDebug ? DEBUG_RANDOMIZER_TOTAL_MS : RANDOMIZER_TOTAL_MS;
 
-const clampSpinPath = (path: number[], maxSteps: number = MAX_SPIN_STEPS) => {
-  if (path.length <= maxSteps) return path;
-  const last = path[path.length - 1];
-  return [...path.slice(0, maxSteps - 1), last];
-};
+const buildLinearStepDurations = (
+  length: number,
+  minStep: number,
+  maxStep: number
+) =>
+  Array.from({ length }).map((_, idx) => {
+    const t = length === 1 ? 1 : idx / (length - 1);
+    return minStep + (maxStep - minStep) * t;
+  });
 
 type TargetOption = { player: Player; idx: number };
 
@@ -96,6 +99,12 @@ export const useChaosGame = () => {
   const [narrativeTitle, setNarrativeTitle] = useState<string>("");
   const [narrativeBody, setNarrativeBody] = useState<string>("");
   const [showNarrativeModal, setShowNarrativeModal] = useState(false);
+  const [narrativeRoll, setNarrativeRoll] = useState<{
+    label: string;
+    trail: string[];
+    isRunning: boolean;
+  }>({ label: "", trail: [], isRunning: false });
+  const narrativeRollToken = useRef(0);
   const [isHydrating, setIsHydrating] = useState(true);
   const [showSelectionModal, setShowSelectionModal] = useState(false);
   const [selectionTitle, setSelectionTitle] = useState<string>("");
@@ -206,6 +215,7 @@ export const useChaosGame = () => {
     setNarrativeBody("");
     setNarrativeTitle("");
     setShowNarrativeModal(false);
+    setNarrativeRoll({ label: "", trail: [], isRunning: false });
     setShowSelectionModal(false);
     setSelectionTarget(null);
     setSelectionActorName(null);
@@ -432,303 +442,54 @@ export const useChaosGame = () => {
       return next;
     });
 
-  const runTargetRandomization = async (
-    availableTargets: TargetOption[],
-    isSteal = false
-  ) => {
-    if (!availableTargets.length) return null;
+  const runNarrativeRoll = async (config: {
+    label: string;
+    items: string[];
+    finalIndex: number;
+    totalMs?: number;
+  }) => {
+    const { label } = config;
+    const totalMs = config.totalMs ?? (debugMode ? 800 : 4000);
+    if (!config.items.length) return;
+    const token = (narrativeRollToken.current += 1);
 
-    setIsRandomizingTarget(true);
+    const safeFinalIndex = Math.min(
+      Math.max(0, config.finalIndex),
+      config.items.length - 1
+    );
+    const items =
+      config.items.length === 1 ? ["…", config.items[0]] : config.items;
+    const finalIndex = config.items.length === 1 ? 1 : safeFinalIndex;
 
-    const availableIndices = availableTargets.map((_, idx) => idx);
-    const weightedIndices = availableTargets.flatMap((opt, idx) =>
-      Array(Math.max(1, opt.player.packages.length + 1)).fill(idx)
-    );
-    const finalIndex =
-      (weightedIndices.length
-        ? weightedIndices[Math.floor(Math.random() * weightedIndices.length)]
-        : 0) ?? 0;
-    const baseLoops = Math.max(2, Math.ceil(availableIndices.length / 2));
-    const spinPath = buildRandomSpinPath(
-      availableIndices,
-      finalIndex,
-      baseLoops
-    );
-    const baseDurations = buildStepDurations(spinPath.length, 70, 320);
-    const tailPortion = Math.max(1, Math.floor(baseDurations.length * 0.3));
-    const tailBoost = 2.5;
-    for (
-      let i = baseDurations.length - tailPortion;
-      i < baseDurations.length;
-      i += 1
-    ) {
-      baseDurations[i] *= tailBoost;
-    }
+    const indices = items.map((_, idx) => idx);
+    const baseLoops = Math.max(8, Math.ceil(40 / Math.max(1, indices.length)));
+    const spinPath = buildRandomSpinPath(indices, finalIndex, baseLoops);
     const stepDurations = normalizeDurationsToTotal(
-      baseDurations,
-      getRandomizerTotal(debugMode)
+      buildLinearStepDurations(spinPath.length, 60, 420),
+      totalMs
     );
 
-    return new Promise<TargetOption>((resolve) => {
-      let step = 0;
-      let lastChange = 0;
+    setNarrativeRoll({ label, trail: [], isRunning: true });
 
-      const setName = (name: string) => {
-        if (isSteal) {
-          setStealTarget(name);
-        } else {
-          setGiveAwayTarget(name);
-        }
-      };
-
-      const tick = (timestamp: number) => {
-        if (step >= spinPath.length) {
-          const finalTarget = availableTargets[finalIndex];
-          setName(finalTarget.player.name);
-          setIsRandomizingTarget(false);
-          resolve(finalTarget);
-          return;
-        }
-
-        if (timestamp - lastChange >= stepDurations[step]) {
-          const idx = spinPath[step];
-          setName(availableTargets[idx].player.name);
-          lastChange = timestamp;
-          step += 1;
-        }
-
-        window.requestAnimationFrame(tick);
-      };
-
-      window.requestAnimationFrame(tick);
-    });
-  };
-
-  const runSelectionRandomization = async (
-    availableTargets: TargetOption[],
-    config: {
-      title: string;
-      verb: string;
-      actorName: string;
-      leadEmoji: string;
-      trailEmoji: string;
-      updateActorWithSelection?: boolean;
-      staticTargetName?: string;
-    }
-  ) => {
-    if (!availableTargets.length) return null;
-    setSelectionTitle(config.title);
-    setSelectionVerb(config.verb);
-    setSelectionActorName(
-      config.updateActorWithSelection ? "…" : config.actorName
-    );
-    setSelectionLeadEmoji(config.leadEmoji);
-    setSelectionTrailEmoji(config.trailEmoji);
-    setSelectionTarget(config.staticTargetName ?? "…");
-    setShowSelectionModal(true);
-    setIsRandomizingSelection(true);
-
-    const availableIndices = availableTargets.map((_, idx) => idx);
-    const weightedIndices = availableTargets.flatMap((opt, idx) =>
-      Array(Math.max(1, opt.player.packages.length + 1)).fill(idx)
-    );
-    const finalIndex =
-      (weightedIndices.length
-        ? weightedIndices[Math.floor(Math.random() * weightedIndices.length)]
-        : 0) ?? 0;
-    const baseLoops = Math.max(2, Math.ceil(availableIndices.length / 2));
-    const spinPath = buildRandomSpinPath(
-      availableIndices,
-      finalIndex,
-      baseLoops
-    );
-    const baseDurations = buildStepDurations(spinPath.length, 70, 320);
-    const tailPortion = Math.max(1, Math.floor(baseDurations.length * 0.3));
-    const tailBoost = 2.5;
-    for (
-      let i = baseDurations.length - tailPortion;
-      i < baseDurations.length;
-      i += 1
-    ) {
-      baseDurations[i] *= tailBoost;
-    }
-    const stepDurations = normalizeDurationsToTotal(
-      baseDurations,
-      getRandomizerTotal(debugMode)
-    );
-
-    return new Promise<TargetOption>((resolve) => {
-      let step = 0;
-      let lastChange = 0;
-      const tick = (timestamp: number) => {
-        if (step >= spinPath.length) {
-          const finalTarget = availableTargets[finalIndex];
-          if (config.updateActorWithSelection) {
-            setSelectionActorName(finalTarget.player.name);
-            setSelectionTarget(config.staticTargetName ?? "…");
-          } else {
-            setSelectionTarget(finalTarget.player.name);
-          }
-          setIsRandomizingSelection(false);
-          resolve(finalTarget);
-          return;
-        }
-        if (timestamp - lastChange >= stepDurations[step]) {
-          const idx = spinPath[step];
-          if (config.updateActorWithSelection) {
-            setSelectionActorName(availableTargets[idx].player.name);
-            setSelectionTarget(config.staticTargetName ?? "…");
-          } else {
-            setSelectionTarget(availableTargets[idx].player.name);
-          }
-          lastChange = timestamp;
-          step += 1;
-        }
-        window.requestAnimationFrame(tick);
-      };
-      window.requestAnimationFrame(tick);
-    });
-  };
-
-  const runDirectionRandomization = async () => {
-    const options: { label: string; value: "left" | "right" }[] = [
-      { label: t("dir.left"), value: "left" },
-      { label: t("dir.right"), value: "right" },
-    ];
-    setSelectionTitle(t("actions.endgame.6.title"));
-    setSelectionVerb(t("ui.modal.twistVerb"));
-    setSelectionActorName(currentPlayer.name);
-    setSelectionLeadEmoji("");
-    setSelectionTrailEmoji("🎁🔄");
-    setSelectionTarget("…");
-    setShowSelectionModal(true);
-    setIsRandomizingSelection(true);
-
-    const finalIndex = Math.random() > 0.5 ? 1 : 0;
-    const spinPath = buildRandomSpinPath([0, 1], finalIndex, 3);
-    const stepDurations = normalizeDurationsToTotal(
-      buildStepDurations(spinPath.length, 80, 260),
-      getRandomizerTotal(debugMode)
-    );
-
-    return new Promise<"left" | "right">((resolve) => {
-      let step = 0;
-      let lastChange = 0;
-      const tick = (timestamp: number) => {
-        if (step >= spinPath.length) {
-          const finalIdx = spinPath[spinPath.length - 1];
-          const final = options[finalIdx] ?? options[0];
-          setSelectionTarget(final.label);
-          setIsRandomizingSelection(false);
-          resolve(final.value);
-          return;
-        }
-        if (timestamp - lastChange >= stepDurations[step]) {
-          const idx = spinPath[step];
-          setSelectionTarget(options[idx]?.label ?? options[0].label);
-          lastChange = timestamp;
-          step += 1;
-        }
-        window.requestAnimationFrame(tick);
-      };
-      window.requestAnimationFrame(tick);
-    });
-  };
-
-  const runPairSelectionRandomization = async (
-    availableTargets: TargetOption[],
-    config: {
-      title: string;
-      verb: string;
-      actorName: string;
-      leadEmoji: string;
-      trailEmoji: string;
-    }
-  ) => {
-    if (availableTargets.length < 2) return null;
-
-    const pairs: {
-      label: string;
-      first: TargetOption;
-      second: TargetOption;
-    }[] = [];
-    for (let i = 0; i < availableTargets.length; i += 1) {
-      for (let j = i + 1; j < availableTargets.length; j += 1) {
-        const a = availableTargets[i];
-        const b = availableTargets[j];
-        pairs.push({
-          label: `${a.player.name} ↔ ${b.player.name}`,
-          first: a,
-          second: b,
-        });
-      }
+    for (let step = 0; step < spinPath.length; step += 1) {
+      if (narrativeRollToken.current !== token) return;
+      const idx = spinPath[step] ?? finalIndex;
+      const name = items[idx] ?? items[finalIndex] ?? "…";
+      setNarrativeRoll((prev) => ({
+        label,
+        isRunning: true,
+        trail: [...prev.trail, name].slice(-3),
+      }));
+      await wait(stepDurations[step] ?? 0);
     }
 
-    const weightedIndices = pairs.flatMap((pair, idx) => {
-      const weight =
-        (pair.first.player.packages.length + 1) *
-        (pair.second.player.packages.length + 1);
-      return Array(Math.max(1, weight)).fill(idx);
-    });
-    const finalIndex =
-      (weightedIndices.length
-        ? weightedIndices[Math.floor(Math.random() * weightedIndices.length)]
-        : 0) ?? 0;
-    const pairIndices = pairs.map((_, idx) => idx);
-    const baseLoops = Math.min(
-      6,
-      Math.max(3, Math.ceil(pairIndices.length / 6))
-    );
-    const spinPath = clampSpinPath(
-      buildRandomSpinPath(pairIndices, finalIndex, baseLoops)
-    );
-    const baseDurations = buildStepDurations(spinPath.length, 70, 320);
-    const tailPortion = Math.max(1, Math.floor(baseDurations.length * 0.3));
-    const tailBoost = 2.5;
-    for (
-      let i = baseDurations.length - tailPortion;
-      i < baseDurations.length;
-      i += 1
-    ) {
-      baseDurations[i] *= tailBoost;
-    }
-    const stepDurations = normalizeDurationsToTotal(
-      baseDurations,
-      getRandomizerTotal(debugMode)
-    );
-
-    setSelectionTitle(config.title);
-    setSelectionVerb(config.verb);
-    setSelectionActorName(config.actorName);
-    setSelectionLeadEmoji(config.leadEmoji);
-    setSelectionTrailEmoji(config.trailEmoji);
-    setSelectionTarget("…");
-    setShowSelectionModal(true);
-    setIsRandomizingSelection(true);
-
-    return new Promise<{ first: TargetOption; second: TargetOption }>(
-      (resolve) => {
-        let step = 0;
-        let lastChange = 0;
-        const tick = (timestamp: number) => {
-          if (step >= spinPath.length) {
-            const final = pairs[finalIndex];
-            setSelectionTarget(final.label);
-            setIsRandomizingSelection(false);
-            resolve({ first: final.first, second: final.second });
-            return;
-          }
-          if (timestamp - lastChange >= stepDurations[step]) {
-            const idx = spinPath[step];
-            setSelectionTarget(pairs[idx]?.label ?? "…");
-            lastChange = timestamp;
-            step += 1;
-          }
-          window.requestAnimationFrame(tick);
-        };
-        window.requestAnimationFrame(tick);
-      }
-    );
+    if (narrativeRollToken.current !== token) return;
+    setNarrativeRoll((prev) => ({
+      ...prev,
+      label,
+      isRunning: false,
+      trail: prev.trail.slice(-3),
+    }));
   };
 
   const handleRoll = async (forcedRoll?: number, isDebug = false) => {
@@ -747,6 +508,9 @@ export const useChaosGame = () => {
     let queue = 1;
     let lastOutcomeLocal: RollOutcome | null = null;
     let modalQueued = false;
+    let blockingModalQueued = false;
+    const pickRandom = <T>(items: T[]): T | null =>
+      items.length ? items[Math.floor(Math.random() * items.length)] : null;
 
     const availableActions = getAvailableActions(
       currentPlayerIndex,
@@ -818,27 +582,40 @@ export const useChaosGame = () => {
 
       let giveAwayTargetPlayer: TargetOption | null = null;
       if (phase === "warmup" && roll === 3) {
-        setNarrativeBody("");
-        setNarrativeTitle("");
-        setShowNarrativeModal(false);
         const otherPlayers: TargetOption[] = players
           .map((p, idx) => ({ player: p, idx }))
           .filter((_, idx) => idx !== currentPlayerIndex);
-        setGiveAwayTarget(null);
-        setGiveAwayActorName(currentPlayer.name);
-        setShowGiveAwayModal(true);
-        modalQueued = true;
-        giveAwayTargetPlayer = await runTargetRandomization(
-          otherPlayers,
-          false
-        );
+        if (otherPlayers.length) {
+          setShowGiveAwayModal(false);
+          setIsRandomizingTarget(false);
+          setGiveAwayTarget(null);
+          setGiveAwayActorName(null);
+
+          const weighted = otherPlayers.flatMap((opt, idx) =>
+            Array(Math.max(1, opt.player.packages.length + 1)).fill(idx)
+          );
+          const finalIndex =
+            (weighted.length
+              ? weighted[Math.floor(Math.random() * weighted.length)]
+              : 0) ?? 0;
+
+          setNarrativeTitle(outcomeTable[roll].title);
+          setNarrativeBody("");
+          setShowNarrativeModal(true);
+          modalQueued = true;
+
+          await runNarrativeRoll({
+            label: lang === "sv" ? "Slumpar spelare" : "Rolling player",
+            items: otherPlayers.map((o) => o.player.name),
+            finalIndex,
+            totalMs: 4000,
+          });
+          giveAwayTargetPlayer = otherPlayers[finalIndex] ?? null;
+        }
       }
 
       let stealTargetPlayer: TargetOption | null = null;
       if (phase === "warmup" && roll === 4) {
-        setNarrativeBody("");
-        setNarrativeTitle("");
-        setShowNarrativeModal(false);
         const stealablePlayers: TargetOption[] = players
           .map((p, idx) => ({ player: p, idx }))
           .filter(
@@ -846,23 +623,32 @@ export const useChaosGame = () => {
               idx !== currentPlayerIndex &&
               player.packages.some((pkg) => !pkg.locked)
           );
-        if (stealablePlayers.length === 1) {
-          const [onlyTarget] = stealablePlayers;
-          setStealTarget(onlyTarget.player.name);
-          setStealActorName(currentPlayer.name);
-          setShowStealModal(true);
+        if (stealablePlayers.length) {
+          setShowStealModal(false);
           setIsRandomizingTarget(false);
-          modalQueued = true;
-          stealTargetPlayer = onlyTarget;
-        } else if (stealablePlayers.length) {
           setStealTarget(null);
-          setStealActorName(currentPlayer.name);
-          setShowStealModal(true);
-          modalQueued = true;
-          stealTargetPlayer = await runTargetRandomization(
-            stealablePlayers,
-            true
+          setStealActorName(null);
+
+          const weighted = stealablePlayers.flatMap((opt, idx) =>
+            Array(Math.max(1, opt.player.packages.length + 1)).fill(idx)
           );
+          const finalIndex =
+            (weighted.length
+              ? weighted[Math.floor(Math.random() * weighted.length)]
+              : 0) ?? 0;
+
+          setNarrativeTitle(outcomeTable[roll].title);
+          setNarrativeBody("");
+          setShowNarrativeModal(true);
+          modalQueued = true;
+
+          await runNarrativeRoll({
+            label: lang === "sv" ? "Slumpar spelare" : "Rolling player",
+            items: stealablePlayers.map((o) => o.player.name),
+            finalIndex,
+            totalMs: 4000,
+          });
+          stealTargetPlayer = stealablePlayers[finalIndex] ?? null;
         }
       }
 
@@ -917,27 +703,23 @@ export const useChaosGame = () => {
             .filter((_, idx) => idx !== currentPlayerIndex)
             .filter(({ player }) => player.packages.length > 0);
           if (targets.length === 1) {
-            const [onlyTarget] = targets;
-            setSelectionTitle(outcomeTable[roll].title);
-            setSelectionVerb(t("ui.modal.flipVerb"));
-            setSelectionActorName(currentPlayer.name);
-            setSelectionLeadEmoji("");
-            setSelectionTrailEmoji("🎁🔄");
-            setSelectionTarget(onlyTarget.player.name);
-            setShowSelectionModal(true);
-            setIsRandomizingSelection(false);
-            modalQueued = true;
-            flipTargetIndex = onlyTarget.idx;
+            flipTargetIndex = targets[0].idx;
           } else if (targets.length) {
             modalQueued = true;
-            const choice = await runSelectionRandomization(targets, {
-              title: outcomeTable[roll].title,
-              verb: t("ui.modal.flipVerb"),
-              actorName: currentPlayer.name,
-              leadEmoji: "",
-              trailEmoji: "🎁🔄",
+            const finalIndex = Math.max(
+              0,
+              targets.findIndex((tgt) => tgt.idx === pickRandom(targets)?.idx)
+            );
+            setNarrativeTitle(outcomeTable[roll].title);
+            setNarrativeBody("");
+            setShowNarrativeModal(true);
+            await runNarrativeRoll({
+              label: lang === "sv" ? "Slumpar spelare" : "Rolling player",
+              items: targets.map((tgt) => tgt.player.name),
+              finalIndex,
+              totalMs: 4000,
             });
-            flipTargetIndex = choice?.idx;
+            flipTargetIndex = targets[finalIndex]?.idx;
           }
         }
 
@@ -947,14 +729,20 @@ export const useChaosGame = () => {
             .filter((_, idx) => idx !== currentPlayerIndex);
           if (targets.length) {
             modalQueued = true;
-            const choice = await runSelectionRandomization(targets, {
-              title: outcomeTable[roll].title,
-              verb: t("ui.modal.trashVerb"),
-              actorName: currentPlayer.name,
-              leadEmoji: "",
-              trailEmoji: "🎁♻️",
+            const finalIndex = Math.max(
+              0,
+              targets.findIndex((tgt) => tgt.idx === pickRandom(targets)?.idx)
+            );
+            setNarrativeTitle(outcomeTable[roll].title);
+            setNarrativeBody("");
+            setShowNarrativeModal(true);
+            await runNarrativeRoll({
+              label: lang === "sv" ? "Slumpar spelare" : "Rolling player",
+              items: targets.map((tgt) => tgt.player.name),
+              finalIndex,
+              totalMs: 4000,
             });
-            trashTargetIndex = choice?.idx;
+            trashTargetIndex = targets[finalIndex]?.idx;
           }
         }
 
@@ -968,15 +756,51 @@ export const useChaosGame = () => {
           );
           if (available.length >= 2 && donors.length > 0) {
             modalQueued = true;
-            const pair = await runPairSelectionRandomization(available, {
-              title: outcomeTable[roll].title,
-              verb: t("ui.modal.jokerPairVerb"),
-              actorName: currentPlayer.name,
-              leadEmoji: "",
-              trailEmoji: "🎁🎭",
-            });
-            if (pair) {
-              jokerTargetIndices = [pair.first.idx, pair.second.idx];
+            const pairs: {
+              label: string;
+              first: TargetOption;
+              second: TargetOption;
+            }[] = [];
+            for (let i = 0; i < available.length; i += 1) {
+              for (let j = i + 1; j < available.length; j += 1) {
+                const a = available[i];
+                const b = available[j];
+                const aEligible = donors.some((d) => d.idx === a.idx);
+                const bEligible = donors.some((d) => d.idx === b.idx);
+                if (!aEligible && !bEligible) continue;
+                pairs.push({
+                  label: `${a.player.name}↔${b.player.name}`,
+                  first: a,
+                  second: b,
+                });
+              }
+            }
+            if (pairs.length) {
+              const weighted = pairs.flatMap((pair, idx) => {
+                const weight =
+                  (pair.first.player.packages.length + 1) *
+                  (pair.second.player.packages.length + 1);
+                return Array(Math.max(1, weight)).fill(idx);
+              });
+              const finalIndex =
+                (weighted.length
+                  ? weighted[Math.floor(Math.random() * weighted.length)]
+                  : 0) ?? 0;
+
+              setNarrativeTitle(outcomeTable[roll].title);
+              setNarrativeBody("");
+              setShowNarrativeModal(true);
+              await runNarrativeRoll({
+                label: lang === "sv" ? "Slumpar spelare" : "Rolling players",
+                items: pairs.map((p) => p.label),
+                finalIndex,
+                totalMs: 4000,
+              });
+
+              const final = pairs[finalIndex];
+              jokerTargetIndices = final
+                ? [final.first.idx, final.second.idx]
+                : undefined;
             }
           }
         }
@@ -986,36 +810,29 @@ export const useChaosGame = () => {
             .map((p, idx) => ({ player: p, idx }))
             .filter((_, idx) => idx !== currentPlayerIndex);
           if (targets.length === 1) {
-            const [onlyTarget] = targets;
-            setSelectionTitle(outcomeTable[roll].title);
-            setSelectionVerb(t("ui.modal.santaVerb"));
-            setSelectionActorName(onlyTarget.player.name);
-            setSelectionLeadEmoji("");
-            setSelectionTrailEmoji("🎁🎅🫳");
-            setSelectionTarget(currentPlayer.name);
-            setShowSelectionModal(true);
-            setIsRandomizingSelection(false);
-            modalQueued = true;
-            santaTargetIndex = onlyTarget.idx;
+            santaTargetIndex = targets[0].idx;
           } else if (targets.length) {
             modalQueued = true;
-            const choice = await runSelectionRandomization(targets, {
-              title: outcomeTable[roll].title,
-              verb: t("ui.modal.santaVerb"),
-              actorName: currentPlayer.name,
-              leadEmoji: "",
-              trailEmoji: "🎁🎅🫳",
-              updateActorWithSelection: true,
-              staticTargetName: currentPlayer.name,
+            const finalIndex = Math.max(
+              0,
+              targets.findIndex((tgt) => tgt.idx === pickRandom(targets)?.idx)
+            );
+            setNarrativeTitle(outcomeTable[roll].title);
+            setNarrativeBody("");
+            setShowNarrativeModal(true);
+            await runNarrativeRoll({
+              label: lang === "sv" ? "Slumpar spelare" : "Rolling player",
+              items: targets.map((tgt) => tgt.player.name),
+              finalIndex,
+              totalMs: 4000,
             });
-            santaTargetIndex = choice?.idx;
+            santaTargetIndex = targets[finalIndex]?.idx;
           }
         }
 
         if (roll === 6) {
           modalQueued = true;
-          const dir = await runDirectionRandomization();
-          forcedDirection = dir ?? undefined;
+          forcedDirection = Math.random() > 0.5 ? "right" : "left";
         }
 
         const {
@@ -1114,9 +931,17 @@ export const useChaosGame = () => {
       rolls: updatedRolls,
     };
 
+    const hasBlockingModal =
+      blockingModalQueued ||
+      showGiveAwayModal ||
+      showStealModal ||
+      showSelectionModal ||
+      isRandomizingSelection ||
+      isRandomizingTarget;
+
     if (transitionToEndgame || modalQueued) {
       setPendingPhaseTransition(transitionData);
-      if (!modalQueued) {
+      if (!hasBlockingModal) {
         runPendingPhaseTransition(transitionData);
       }
     } else {
@@ -1325,6 +1150,7 @@ export const useChaosGame = () => {
     narrativeTitle,
     narrativeBody,
     showNarrativeModal,
+    narrativeRoll,
     handleCloseNarrativeModal,
     handleCloseGiveAwayModal,
     handleCloseStealModal,
