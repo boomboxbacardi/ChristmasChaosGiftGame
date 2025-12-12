@@ -484,12 +484,12 @@ export const useChaosGame = () => {
     }
 
     if (narrativeRollToken.current !== token) return;
-    setNarrativeRoll((prev) => ({
-      ...prev,
-      label,
-      isRunning: false,
-      trail: prev.trail.slice(-3),
-    }));
+    const finalName = items[finalIndex] ?? "…";
+    setNarrativeRoll({ label, isRunning: false, trail: [finalName] });
+    window.setTimeout(() => {
+      if (narrativeRollToken.current !== token) return;
+      setNarrativeRoll({ label: "", trail: [], isRunning: false });
+    }, 900);
   };
 
   const handleRoll = async (forcedRoll?: number, isDebug = false) => {
@@ -512,6 +512,10 @@ export const useChaosGame = () => {
     const pickRandom = <T>(items: T[]): T | null =>
       items.length ? items[Math.floor(Math.random() * items.length)] : null;
 
+    // Reset the narrative "player roll" UI every roll so it never lingers.
+    narrativeRollToken.current += 1;
+    setNarrativeRoll({ label: "", trail: [], isRunning: false });
+
     const availableActions = getAvailableActions(
       currentPlayerIndex,
       players,
@@ -521,12 +525,13 @@ export const useChaosGame = () => {
     const pileHasGifts = pileCount > 0;
     const weightedIndices = availableActions.flatMap((roll) => {
       if (phase === "warmup" && (roll === 1 || roll === 2)) {
-        const hasGifts = currentPlayer.packages.length > 0;
-        let weight = roll === 1 && !hasGifts ? 3 : 1;
-        if (pileHasGifts) {
-          weight += 1;
-        }
-        return Array(Math.max(1, weight)).fill(roll - 1);
+        // Balance: make "Double Grab" noticeably rarer, especially early when
+        // often only (1) and (2) are available. With only rolls 1 & 2:
+        // - Double (1): 1/(1+2) = 33%
+        // - Single (2): 2/(1+2) = 67%
+        if (!pileHasGifts) return [roll - 1];
+        const weight = roll === 1 ? 1 : 2;
+        return Array(weight).fill(roll - 1);
       }
       if (phase === "endgame" && roll === 6) {
         const hasGifts = currentPlayer.packages.length > 0;
