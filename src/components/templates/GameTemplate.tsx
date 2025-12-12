@@ -1,7 +1,7 @@
 import { ReactNode } from 'react'
 import { HeroHeader, LastRollCard, OrderModal, StatusStrip } from '../molecules'
 import { LogPanel, PlayerListPanel, RandomizerPanel, RulesPanel } from '../organisms'
-import { ActionNarrativeModal, GiveAwayModal, StealModal, TargetSelectionModal } from '../organisms/modals'
+import { ActionNarrativeModal, GameEndedModal, GiveAwayModal, StealModal, TargetSelectionModal } from '../organisms/modals'
 import { GamePhase, LogEntry, Player, RollOutcome } from '../../types/game'
 
 type GameTemplateProps = {
@@ -96,6 +96,13 @@ type GameTemplateProps = {
       isRunning: boolean
     }
   }
+  gameEndedModal: {
+    isOpen: boolean
+    title: string
+    bodyLines: string[]
+    closeLabel: string
+    onClose: () => void
+  }
   selectionModal: {
     isOpen: boolean
     title: string
@@ -140,6 +147,7 @@ export const GameTemplate = ({
   giveAwayModal,
   stealModal,
   narrativeModal,
+  gameEndedModal,
   selectionModal,
   orderModal,
 }: GameTemplateProps) => (
@@ -164,6 +172,14 @@ export const GameTemplate = ({
       narrative={narrativeModal.narrative}
       placeholder={narrativeModal.placeholder}
       roller={narrativeModal.roller}
+    />
+
+    <GameEndedModal
+      isOpen={gameEndedModal.isOpen}
+      title={gameEndedModal.title}
+      bodyLines={gameEndedModal.bodyLines}
+      closeLabel={gameEndedModal.closeLabel}
+      onClose={gameEndedModal.onClose}
     />
 
     <section className="layout">

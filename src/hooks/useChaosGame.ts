@@ -47,6 +47,7 @@ const computeDefaultPile = (playerCount: number) =>
 
 export const useChaosGame = () => {
   const [phase, setPhase] = useState<GamePhase>("setup");
+  const prevPhaseRef = useRef<GamePhase>(phase);
   const [players, setPlayers] = useState<Player[]>([]);
   const [pileCount, setPileCount] = useState<number>(
     computeDefaultPile(playersSeed.length)
@@ -107,6 +108,7 @@ export const useChaosGame = () => {
   const narrativeRollToken = useRef(0);
   const [isHydrating, setIsHydrating] = useState(true);
   const [showSelectionModal, setShowSelectionModal] = useState(false);
+  const [showGameEndedModal, setShowGameEndedModal] = useState(false);
   const [selectionTitle, setSelectionTitle] = useState<string>("");
   const [selectionVerb, setSelectionVerb] = useState<string>("");
   const [selectionActorName, setSelectionActorName] = useState<string | null>(
@@ -194,6 +196,7 @@ export const useChaosGame = () => {
 
   const resetGame = () => {
     setPhase("setup");
+    prevPhaseRef.current = "setup";
     setPlayers([]);
     setPileCount(computeDefaultPile(playersSeed.length));
     setCurrentPlayerIndex(0);
@@ -224,6 +227,7 @@ export const useChaosGame = () => {
     setSelectionLeadEmoji("🎲");
     setSelectionTrailEmoji("🎁");
     setIsRandomizingSelection(false);
+    setShowGameEndedModal(false);
     setPendingOrder([]);
     setPendingPlayers([]);
     setPendingPile(computeDefaultPile(playersSeed.length));
@@ -1004,6 +1008,10 @@ export const useChaosGame = () => {
     runPendingPhaseTransition();
   };
 
+  const handleCloseGameEndedModal = () => {
+    setShowGameEndedModal(false);
+  };
+
   const currentPhaseLabel =
     phase === "setup"
       ? t("ui.setup.title")
@@ -1023,6 +1031,14 @@ export const useChaosGame = () => {
       !pendingPhaseTransition &&
       Boolean(currentPlayer.id) &&
       playerRolls > 0);
+
+  useEffect(() => {
+    const prevPhase = prevPhaseRef.current;
+    if (prevPhase === "endgame" && phase === "ended") {
+      setShowGameEndedModal(true);
+    }
+    prevPhaseRef.current = phase;
+  }, [phase]);
 
   useEffect(() => {
     const savedLang = localStorage.getItem(LANG_KEY) as Lang | null;
@@ -1046,6 +1062,7 @@ export const useChaosGame = () => {
         setupPile: number;
       };
       setPhase(parsed.phase);
+      prevPhaseRef.current = parsed.phase;
       setPlayers(parsed.players);
       setPileCount(parsed.pileCount);
       setCurrentPlayerIndex(parsed.currentPlayerIndex);
@@ -1145,6 +1162,8 @@ export const useChaosGame = () => {
     // modals + banners
     phaseBanner,
     setPhaseBanner,
+    showGameEndedModal,
+    handleCloseGameEndedModal,
     showGiveAwayModal,
     giveAwayTarget,
     giveAwayActorName,

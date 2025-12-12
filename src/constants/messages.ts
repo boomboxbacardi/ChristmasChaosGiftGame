@@ -42,8 +42,8 @@ export const messages: Record<Lang, Record<string, string>> = {
     "ui.roll.finished": "Finished",
     "ui.lang.en": "EN",
     "ui.lang.sv": "SV",
-    "ui.randomizer.headingWarmup": "Phase 1 — Distribute",
-    "ui.randomizer.headingEndgame": "Phase 2 — Endgame",
+    "ui.randomizer.headingWarmup": "ROLLING PLAYER",
+    "ui.randomizer.headingEndgame": "ROLLING PLAYER",
     "ui.randomizer.hint": "Pick a random action",
     "ui.randomizer.hintDebug": "Click any action to trigger (debug)",
     "ui.players.title": "Players",
@@ -59,6 +59,12 @@ export const messages: Record<Lang, Record<string, string>> = {
     "ui.modal.jokerPairVerb": "picks two players to swap gifts",
     "ui.modal.santaVerb": "gets to pick any gift from",
     "ui.modal.twistVerb": "rotates all gifts to",
+    "ui.modal.gameEnded.title": "Game ended",
+    "ui.modal.gameEnded.line1":
+      "All gifts have been handed out and the game is over. ",
+    "ui.modal.gameEnded.line2": "Hope you had fun!",
+    "ui.modal.gameEnded.line3":
+      'If you want to start over, choose "Reset" in the menu.',
     "ui.modal.close": "Close",
     "ui.narrative.placeholder": "Waiting for the next action…",
 
@@ -186,8 +192,8 @@ export const messages: Record<Lang, Record<string, string>> = {
     "ui.roll.finished": "Klart",
     "ui.lang.en": "EN",
     "ui.lang.sv": "SV",
-    "ui.randomizer.headingWarmup": "Fas 1 - Fördela",
-    "ui.randomizer.headingEndgame": "Fas 2 – Endgame",
+    "ui.randomizer.headingWarmup": "SLUMPAR SPELARE",
+    "ui.randomizer.headingEndgame": "SLUMPAR SPELARE",
     "ui.randomizer.hint": "Välj slumpmässig handling",
     "ui.randomizer.hintDebug": "Klicka på en action för att trigga (debug)",
     "ui.players.title": "Spelare",
@@ -203,6 +209,12 @@ export const messages: Record<Lang, Record<string, string>> = {
     "ui.modal.jokerPairVerb": "väljer två spelare som byter paket",
     "ui.modal.santaVerb": "får välja ett valfritt paket från",
     "ui.modal.twistVerb": "roterar alla paket åt",
+    "ui.modal.gameEnded.title": "Spelet är slut",
+    "ui.modal.gameEnded.line1":
+      "Nu är alla julklappar utdelade och spelet är slut. ",
+    "ui.modal.gameEnded.line2": "Hoppas du hade det roligt!",
+    "ui.modal.gameEnded.line3":
+      'Om du vill börja om spelet, välj "Nollställ" i menyn.',
     "ui.modal.close": "Stäng",
     "ui.narrative.placeholder": "Väntar på nästa händelse…",
 

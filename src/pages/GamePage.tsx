@@ -219,6 +219,13 @@ export const GamePage = () => {
         placeholder: t('ui.narrative.placeholder'),
         roller: game.narrativeRoll,
       }}
+      gameEndedModal={{
+        isOpen: game.showGameEndedModal,
+        title: t('ui.modal.gameEnded.title'),
+        bodyLines: [t('ui.modal.gameEnded.line1'), t('ui.modal.gameEnded.line2'), t('ui.modal.gameEnded.line3')],
+        closeLabel: t('ui.modal.close'),
+        onClose: game.handleCloseGameEndedModal,
+      }}
       selectionModal={{
         isOpen: game.showSelectionModal,
         title: game.selectionTitle,

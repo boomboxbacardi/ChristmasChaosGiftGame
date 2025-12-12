@@ -31,6 +31,7 @@ export const ActionNarrativeModal = ({ isOpen, title, narrative, placeholder, ro
   }, [isOpen, hasNarrative, narrative, roller?.isRunning, roller?.trail.length])
 
   const rollerValue = roller?.trail?.length ? roller.trail[roller.trail.length - 1] : null
+  const displayRollerValue = rollerValue ?? '…'
 
   return (
     <section
@@ -49,11 +50,11 @@ export const ActionNarrativeModal = ({ isOpen, title, narrative, placeholder, ro
         <p className="narrative-widget__body" data-muted={!hasNarrative}>
           {displayText}
         </p>
-        {roller && rollerValue ? (
+        {roller ? (
           <p className="narrative-widget__roller" aria-label={roller.label}>
             <span className="narrative-widget__roller-label">{roller.label}</span>
             <span className="narrative-widget__roller-value" data-running={roller.isRunning}>
-              {rollerValue}
+              {displayRollerValue}
             </span>
           </p>
         ) : null}
