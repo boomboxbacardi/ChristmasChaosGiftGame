@@ -710,7 +710,9 @@ export const useChaosGame = () => {
           const targets = updatedPlayers
             .map((p, idx) => ({ player: p, idx }))
             .filter((_, idx) => idx !== currentPlayerIndex)
-            .filter(({ player }) => player.packages.length > 0);
+            // Full Flip only makes sense against players with unlocked gifts.
+            // Keep this consistent with `endgameTable[2].requires` and `applyEndgameRoll`.
+            .filter(({ player }) => player.packages.some((pkg) => !pkg.locked));
           if (targets.length === 1) {
             flipTargetIndex = targets[0].idx;
           } else if (targets.length) {

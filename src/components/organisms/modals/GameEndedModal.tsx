@@ -48,3 +48,4 @@ export const GameEndedModal: React.FC<Props> = ({
     </div>
   )
 }
+
