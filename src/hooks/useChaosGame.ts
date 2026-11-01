@@ -1,1193 +1,643 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { type ActionTargets, applyRoll } from "../game/actions";
+import { defaultPlayerNames, uid } from "../game/engine";
+import { shuffle, shuffleSeats } from "../game/seating";
+import { type Lang, detectBrowserLang, possessive, tr } from "../constants/messages";
 import {
   ENDGAME_ROLLS,
   PACKAGES_PER_PLAYER,
   WARMUP_ROLLS,
-  endgameTable,
   getPhaseTable,
-  warmupTable,
 } from "../constants/tables";
-import { Lang, detectBrowserLang, tr } from "../constants/messages";
-import { GamePhase, LogEntry, Player, RollOutcome } from "../types/game";
-import {
-  buildRandomSpinPath,
-  buildStepDurations,
-  normalizeDurationsToTotal,
-  pickFinalRoll,
-} from "../utils/randomizer";
-import { applyEndgameRoll, applyWarmupRoll } from "../game/actions";
-import { playersSeed, uid } from "../game/engine";
-import { useHighlightSequence } from "./useHighlightSequence";
+import type { ActionResult, GamePhase, LogEntry, Message, Player } from "../types/game";
+import { emitFx } from "../utils/fx";
+import { giftCounts, pickWeighted } from "../utils/players";
+import { brakingDurations, buildSpinPath, runPath, wait } from "../utils/sequence";
+import { readJson, removeKey, writeJson } from "../utils/storage";
+import { useSound } from "./useSound";
 
-const STORAGE_KEY = "chaos-christmas-game-v1";
-const LANG_KEY = "chaos-lang";
-const RANDOMIZER_TOTAL_MS = 5000;
-const DEBUG_RANDOMIZER_TOTAL_MS = 500;
+const STORAGE_KEY = "christmas-chaos-v2";
+const SETTINGS_KEY = "christmas-chaos-settings";
+const MAX_NAME = 24;
+const MAX_PLAYERS = 24;
 
-const wait = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
+export type SetupStep = "players" | "seating";
+export type Stage = "idle" | "spinning" | "targeting" | "result";
 
-const getRandomizerTotal = (isDebug: boolean) =>
-  isDebug ? DEBUG_RANDOMIZER_TOTAL_MS : RANDOMIZER_TOTAL_MS;
+type SavedGame = {
+  phase: GamePhase;
+  players: Player[];
+  pile: number;
+  current: number;
+  rolls: Record<string, number>;
+  warmupTaken: Record<string, number>;
+  log: LogEntry[];
+  result: ActionResult | null;
+  setupNames: string[];
+  setupPile: number;
+  pileTouched: boolean;
+  setupStep: SetupStep;
+  seatOrder: string[];
+};
 
-const buildLinearStepDurations = (
-  length: number,
-  minStep: number,
-  maxStep: number
-) =>
-  Array.from({ length }).map((_, idx) => {
-    const t = length === 1 ? 1 : idx / (length - 1);
-    return minStep + (maxStep - minStep) * t;
+type Settings = { lang: Lang; sound: boolean; turbo: boolean };
+
+const suggestedPile = (count: number) => Math.max(1, count * PACKAGES_PER_PLAYER);
+
+const cleanNames = (names: string[]) =>
+  names.map((n) => n.trim().slice(0, MAX_NAME)).filter(Boolean);
+
+/** Roll weights: keep "Double Grab" rarer, and favour Twist of Fate for empty hands. */
+const rollWeight = (phase: GamePhase, roll: number, actor: Player, pile: number) => {
+  if (phase === "warmup" && roll === 1) return pile >= 2 ? 1 : 0;
+  if (phase === "warmup" && roll === 2) return 2;
+  if (phase === "endgame" && roll === 6) return actor.packages.length ? 1 : 3;
+  return 1;
+};
+
+const hasUnlocked = (p: Player) => p.packages.some((pkg) => !pkg.locked);
+const unlockedCount = (p: Player) => p.packages.filter((pkg) => !pkg.locked).length;
+
+/** Who can be hit by a roll, as seat sets with weights. */
+const targetOptions = (phase: GamePhase, roll: number, players: Player[], actor: number) => {
+  const others = players.map((p, idx) => ({ p, idx })).filter(({ idx }) => idx !== actor);
+  const single = (list: { p: Player; idx: number }[], weight: (p: Player) => number) => ({
+    kind: "single" as const,
+    options: list.map(({ idx }) => [idx]),
+    weights: list.map(({ p }) => weight(p)),
   });
+  if (phase === "warmup") {
+    if (roll === 3) return single(others, (p) => p.packages.length + 1);
+    if (roll === 4) return single(others.filter(({ p }) => hasUnlocked(p)), (p) => p.packages.length + 1);
+    return null;
+  }
+  if (roll === 2) return single(others.filter(({ p }) => hasUnlocked(p)), () => 1);
+  if (roll === 3) return single(others, (p) => unlockedCount(p) + 1);
+  if (roll === 5) return single(others, () => 1);
+  if (roll === 4) {
+    const options: number[][] = [];
+    const weights: number[] = [];
+    for (let a = 0; a < players.length; a += 1) {
+      for (let b = a + 1; b < players.length; b += 1) {
+        if (!hasUnlocked(players[a]) && !hasUnlocked(players[b])) continue;
+        options.push([a, b]);
+        weights.push((players[a].packages.length + 1) * (players[b].packages.length + 1));
+      }
+    }
+    return { kind: "pair" as const, options, weights };
+  }
+  return null;
+};
 
-type TargetOption = { player: Player; idx: number };
-
-const computeDefaultPile = (playerCount: number) =>
-  Math.max(0, playerCount * PACKAGES_PER_PLAYER);
+const fxSound = {
+  grab: "land",
+  steal: "steal",
+  give: "whoosh",
+  freeze: "freeze",
+  swap: "whoosh",
+  rotate: "whoosh",
+  calm: "tick",
+} as const;
 
 export const useChaosGame = () => {
-  const [phase, setPhase] = useState<GamePhase>("setup");
-  const prevPhaseRef = useRef<GamePhase>(phase);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [pileCount, setPileCount] = useState<number>(
-    computeDefaultPile(playersSeed.length)
+  const [saved] = useState(() => readJson<SavedGame>(STORAGE_KEY));
+  const [settings] = useState(() => readJson<Settings>(SETTINGS_KEY));
+
+  // Settings
+  const [lang, setLang] = useState<Lang>(settings?.lang ?? detectBrowserLang());
+  const [sound, setSound] = useState(settings?.sound ?? true);
+  const [turbo, setTurbo] = useState(settings?.turbo ?? false);
+  const [debug, setDebug] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug")
   );
-  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
-  const [rollsRemaining, setRollsRemaining] = useState<Record<string, number>>(
-    {}
+  const play = useSound(sound);
+
+  // Setup
+  const [names, setNames] = useState<string[]>(saved?.setupNames ?? defaultPlayerNames);
+  const [setupPile, setSetupPileRaw] = useState(
+    saved?.setupPile ?? suggestedPile(defaultPlayerNames.length)
   );
-  const [warmupRollsTaken, setWarmupRollsTaken] = useState<
-    Record<string, number>
-  >({});
-  const [setupPlayers, setSetupPlayers] = useState<string[]>(
-    playersSeed.map((p) => p.name)
+  const [pileTouched, setPileTouched] = useState(saved?.pileTouched ?? false);
+  const [setupStep, setSetupStep] = useState<SetupStep>(saved?.setupStep ?? "players");
+  const [seatOrder, setSeatOrder] = useState<string[]>(saved?.seatOrder ?? []);
+  const [isShufflingSeats, setIsShufflingSeats] = useState(false);
+  const [starterSeat, setStarterSeat] = useState<number | null>(null);
+  const [starterLocked, setStarterLocked] = useState(false);
+  const [setupError, setSetupError] = useState<Message | null>(null);
+
+  // Game
+  const [phase, setPhase] = useState<GamePhase>(saved?.phase ?? "setup");
+  const [players, setPlayers] = useState<Player[]>(saved?.players ?? []);
+  const [pile, setPile] = useState(saved?.pile ?? 0);
+  const [current, setCurrent] = useState(saved?.current ?? 0);
+  const [rolls, setRolls] = useState<Record<string, number>>(saved?.rolls ?? {});
+  const [warmupTaken, setWarmupTaken] = useState<Record<string, number>>(
+    saved?.warmupTaken ?? {}
   );
-  const [setupPile, setSetupPile] = useState<number>(() =>
-    computeDefaultPile(playersSeed.length)
+  const [log, setLog] = useState<LogEntry[]>(saved?.log ?? []);
+  const [result, setResult] = useState<ActionResult | null>(saved?.result ?? null);
+  const [banner, setBanner] = useState<"endgame" | null>(null);
+  const [showEnd, setShowEnd] = useState(saved?.phase === "ended");
+
+  // Animation
+  const [stage, setStage] = useState<Stage>(saved?.result ? "result" : "idle");
+  const [highlightedRoll, setHighlightedRoll] = useState<number | null>(
+    saved?.result?.roll || null
   );
-  const [isSetupRandomizing, setIsSetupRandomizing] = useState(false);
-  const [setupHighlightedIndex, setSetupHighlightedIndex] = useState<
-    number | null
-  >(null);
-  const [pendingOrder, setPendingOrder] = useState<string[]>([]);
-  const [pendingPlayers, setPendingPlayers] = useState<Player[]>([]);
-  const [pendingPile, setPendingPile] = useState<number>(() =>
-    computeDefaultPile(playersSeed.length)
+  const [isFinal, setIsFinal] = useState(Boolean(saved?.result));
+  const [targetSeats, setTargetSeats] = useState<number[]>([]);
+  const [targetKind, setTargetKind] = useState<"single" | "pair">("single");
+  const busyRef = useRef(false);
+  const tokenRef = useRef(0);
+
+  const speed = debug ? 0.15 : turbo ? 0.35 : 1;
+
+  const t = useCallback(
+    (key: string, params?: Record<string, string | number>) => tr(lang, key, params),
+    [lang]
   );
-  const [showOrderModal, setShowOrderModal] = useState(false);
-  const [isStartingGame, setIsStartingGame] = useState(false);
-  const [phaseBanner, setPhaseBanner] = useState<string | null>(null);
-  const [pendingPhaseTransition, setPendingPhaseTransition] = useState<{
-    nextPhase: GamePhase;
-    rolls: Record<string, number>;
-    nextPlayerIndex: number;
-  } | null>(null);
-  const [log, setLog] = useState<LogEntry[]>([]);
-  const [lastOutcome, setLastOutcome] = useState<RollOutcome | null>(null);
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
-  const [isFinalResult, setIsFinalResult] = useState(false);
-  const [showGiveAwayModal, setShowGiveAwayModal] = useState(false);
-  const [giveAwayTarget, setGiveAwayTarget] = useState<string | null>(null);
-  const [isRandomizingTarget, setIsRandomizingTarget] = useState(false);
-  const [showStealModal, setShowStealModal] = useState(false);
-  const [stealTarget, setStealTarget] = useState<string | null>(null);
-  const [giveAwayActorName, setGiveAwayActorName] = useState<string | null>(
-    null
-  );
-  const [stealActorName, setStealActorName] = useState<string | null>(null);
-  const [debugMode, setDebugMode] = useState(false);
-  const [narrativeTitle, setNarrativeTitle] = useState<string>("");
-  const [narrativeBody, setNarrativeBody] = useState<string>("");
-  const [showNarrativeModal, setShowNarrativeModal] = useState(false);
-  const [narrativeRoll, setNarrativeRoll] = useState<{
-    label: string;
-    trail: string[];
-    isRunning: boolean;
-  }>({ label: "", trail: [], isRunning: false });
-  const narrativeRollToken = useRef(0);
-  const [isHydrating, setIsHydrating] = useState(true);
-  const [showSelectionModal, setShowSelectionModal] = useState(false);
-  const [showGameEndedModal, setShowGameEndedModal] = useState(false);
-  const [selectionTitle, setSelectionTitle] = useState<string>("");
-  const [selectionVerb, setSelectionVerb] = useState<string>("");
-  const [selectionActorName, setSelectionActorName] = useState<string | null>(
-    null
-  );
-  const [selectionTarget, setSelectionTarget] = useState<string | null>(null);
-  const [selectionLeadEmoji, setSelectionLeadEmoji] = useState<string>("🎲");
-  const [selectionTrailEmoji, setSelectionTrailEmoji] = useState<string>("🎁");
-  const [isRandomizingSelection, setIsRandomizingSelection] = useState(false);
-  const [lang, setLang] = useState<Lang>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(LANG_KEY) as Lang | null;
-      if (stored === "en" || stored === "sv") return stored;
-    }
-    return detectBrowserLang();
-  });
+  const tm = useCallback((msg: Message) => tr(lang, msg.key, msg.params), [lang]);
 
-  const t = (key: string, params?: Record<string, string | number>) =>
-    tr(lang, key, params);
-
-  const runHighlightSequence = useHighlightSequence(
-    (idx) => setHighlightedIndex(idx),
-    setIsFinalResult,
-    { totalDurationMs: getRandomizerTotal(debugMode) }
-  );
-
-  const currentPlayer = players[currentPlayerIndex] ?? {
-    id: "",
-    name: "—",
-    packages: [],
-  };
-  const totalRollsLeft = useMemo(
-    () => Object.values(rollsRemaining).reduce((sum, v) => sum + v, 0),
-    [rollsRemaining]
-  );
-
-  const localizedWarmupTable = useMemo(() => {
-    const table = { ...warmupTable };
-    Object.keys(table).forEach((k) => {
-      const idx = Number(k);
-      table[idx] = {
-        ...table[idx],
-        title: tr(lang, `actions.warmup.${idx}.title`),
-        description: tr(lang, `actions.warmup.${idx}.desc`),
-      };
-    });
-    return table;
-  }, [lang]);
-
-  const localizedEndgameTable = useMemo(() => {
-    const table = { ...endgameTable };
-    Object.keys(table).forEach((k) => {
-      const idx = Number(k);
-      table[idx] = {
-        ...table[idx],
-        title: tr(lang, `actions.endgame.${idx}.title`),
-        description: tr(lang, `actions.endgame.${idx}.desc`),
-      };
-    });
-    return table;
-  }, [lang]);
-
-  const phaseTable =
-    phase === "setup"
-      ? localizedWarmupTable
-      : phase === "warmup"
-      ? localizedWarmupTable
-      : localizedEndgameTable;
-
-  const getAvailableActions = (
-    playerIndex: number,
-    roster: Player[],
-    currentPhase: GamePhase
-  ) => {
-    const table = getPhaseTable(currentPhase);
-    return Object.keys(table)
-      .map(Number)
-      .filter((roll) => {
-        const action = table[roll];
-        return (
-          !action.requires || action.requires(playerIndex, roster, pileCount)
-        );
-      });
-  };
-
-  const resetGame = () => {
-    setPhase("setup");
-    prevPhaseRef.current = "setup";
-    setPlayers([]);
-    setPileCount(computeDefaultPile(playersSeed.length));
-    setCurrentPlayerIndex(0);
-    setRollsRemaining({});
-    setWarmupRollsTaken({});
-    setSetupPlayers(playersSeed.map((p) => p.name));
-    setSetupPile(computeDefaultPile(playersSeed.length));
-    setLog([]);
-    setLastOutcome(null);
-    setIsFinalResult(false);
-    setHighlightedIndex(null);
-    setShowGiveAwayModal(false);
-    setGiveAwayTarget(null);
-    setGiveAwayActorName(null);
-    setIsRandomizingTarget(false);
-    setShowStealModal(false);
-    setStealTarget(null);
-    setStealActorName(null);
-    setNarrativeBody("");
-    setNarrativeTitle("");
-    setShowNarrativeModal(false);
-    setNarrativeRoll({ label: "", trail: [], isRunning: false });
-    setShowSelectionModal(false);
-    setSelectionTarget(null);
-    setSelectionActorName(null);
-    setSelectionTitle("");
-    setSelectionVerb("");
-    setSelectionLeadEmoji("🎲");
-    setSelectionTrailEmoji("🎁");
-    setIsRandomizingSelection(false);
-    setShowGameEndedModal(false);
-    setPendingOrder([]);
-    setPendingPlayers([]);
-    setPendingPile(computeDefaultPile(playersSeed.length));
-    setShowOrderModal(false);
-    setIsStartingGame(false);
-    setPhaseBanner(null);
-    setSetupHighlightedIndex(null);
-    setPendingPhaseTransition(null);
-    localStorage.removeItem(STORAGE_KEY);
-  };
-
-  const computeNextPlayerIndex = (
-    updatedRolls: Record<string, number>,
-    roster: Player[],
-    nextPhase: GamePhase
-  ) => {
-    if (nextPhase === "ended") return 0;
-    const len = roster.length;
-    for (let i = 1; i <= len; i += 1) {
-      const idx = (currentPlayerIndex + i) % len;
-      const pid = roster[idx].id;
-      if (updatedRolls[pid] > 0) return idx;
-    }
-    return currentPlayerIndex;
-  };
-
-  const advanceTurn = (
-    updatedRolls: Record<string, number>,
-    nextPhase: GamePhase,
-    roster: Player[] = players
-  ) => {
-    if (nextPhase === "ended") {
-      setPhase("ended");
-      setCurrentPlayerIndex(0);
-      setRollsRemaining(updatedRolls);
-      return;
-    }
-
-    const nextIndex = computeNextPlayerIndex(updatedRolls, roster, nextPhase);
-
-    setCurrentPlayerIndex(nextIndex);
-    setRollsRemaining(updatedRolls);
-    setPhase(nextPhase);
-  };
-
-  const persistState = (state: {
-    phase: GamePhase;
-    players: Player[];
-    pileCount: number;
-    currentPlayerIndex: number;
-    rollsRemaining: Record<string, number>;
-    warmupRollsTaken: Record<string, number>;
-    log: LogEntry[];
-    lastOutcome: RollOutcome | null;
-    setupPlayers: string[];
-    setupPile: number;
-  }) => {
-    const snapshot = {
-      ...state,
-      players: state.players,
-      log: state.log.slice(0, 60),
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
-  };
-
-  const beginGameFromPending = () => {
-    if (!pendingPlayers.length) return;
-    setIsStartingGame(true);
-    const delay = 3000 + Math.floor(Math.random() * 2000);
-    setTimeout(() => {
-      const playerObjs = pendingPlayers.map((p) => ({
-        ...p,
-        packages: [...p.packages],
-      }));
-      const rolls = Object.fromEntries(
-        playerObjs.map((p) => [p.id, WARMUP_ROLLS])
-      );
-      const warmupTaken = Object.fromEntries(playerObjs.map((p) => [p.id, 0]));
-
-      setPlayers(playerObjs);
-      setPileCount(pendingPile);
-      setCurrentPlayerIndex(0);
-      setRollsRemaining(rolls);
-      setWarmupRollsTaken(warmupTaken);
-      setLog([]);
-      setLastOutcome(null);
-      setIsFinalResult(false);
-      setHighlightedIndex(null);
-      setShowGiveAwayModal(false);
-      setShowStealModal(false);
-      setIsRandomizingTarget(false);
-      setNarrativeBody("");
-      setNarrativeTitle("");
-      setShowNarrativeModal(false);
-      setPhase("warmup");
-      setShowOrderModal(false);
-      setIsStartingGame(false);
-      setPhaseBanner(null);
-
-      persistState({
-        phase: "warmup",
-        players: playerObjs,
-        pileCount: pendingPile,
-        currentPlayerIndex: 0,
-        rollsRemaining: rolls,
-        warmupRollsTaken: warmupTaken,
-        log: [],
-        lastOutcome: null,
-        setupPlayers,
-        setupPile,
-      });
-    }, delay);
-  };
-
-  const startGameWithSetup = async () => {
-    if (isSetupRandomizing) return;
-    const cleanedNames = setupPlayers.map((n) => n.trim()).filter(Boolean);
-    if (cleanedNames.length < 2) {
-      alert("Add at least two players");
-      return;
-    }
-    if (setupPile <= 0) {
-      alert("Total packages must be greater than 0");
-      return;
-    }
-
-    setIsSetupRandomizing(true);
-    const indices = cleanedNames.map((_, idx) => idx);
-    const finalIndex = Math.floor(Math.random() * indices.length);
-    const spinPath = buildRandomSpinPath(
-      indices,
-      finalIndex,
-      Math.max(2, Math.ceil(indices.length / 2))
-    );
-    const stepDurations = normalizeDurationsToTotal(
-      buildStepDurations(spinPath.length, 70, 220),
-      getRandomizerTotal(debugMode)
-    );
-
-    await new Promise<void>((resolve) => {
-      let step = 0;
-      let last = 0;
-      const tick = (ts: number) => {
-        if (step >= spinPath.length) {
-          setSetupHighlightedIndex(finalIndex);
-          resolve();
-          return;
-        }
-        if (ts - last >= stepDurations[step]) {
-          setSetupHighlightedIndex(spinPath[step]);
-          last = ts;
-          step += 1;
-        }
-        window.requestAnimationFrame(tick);
-      };
-      window.requestAnimationFrame(tick);
-    });
-
-    const shuffled = [...cleanedNames];
-    const [first] = shuffled.splice(finalIndex, 1);
-    const rest = shuffled.sort(() => Math.random() - 0.5);
-    const ordered = [first, ...rest];
-
-    const playerObjs = ordered.map((name) => ({
-      id: uid(),
-      name,
-      packages: [],
-    }));
-
-    setPendingOrder(ordered);
-    setPendingPlayers(playerObjs);
-    setPendingPile(setupPile);
-    setIsSetupRandomizing(false);
-
-    // Pause briefly so the selected player stays visible before showing the modal
-    setTimeout(() => {
-      setShowOrderModal(true);
-      setSetupHighlightedIndex(null);
-    }, 1000);
-  };
-
-  const runPendingPhaseTransition = (data?: {
-    nextPhase: GamePhase;
-    nextPlayerIndex: number;
-    rolls: Record<string, number>;
-  }) => {
-    const transition = data ?? pendingPhaseTransition;
-    if (!transition) return;
-    const { nextPhase, nextPlayerIndex, rolls } = transition;
-    setCurrentPlayerIndex(nextPlayerIndex);
-    setRollsRemaining(rolls);
-    setPhase(nextPhase);
-    if (nextPhase === "endgame" && phase !== "endgame") {
-      setPhaseBanner(t("ui.banner.endgame"));
-    }
-    setPendingPhaseTransition(null);
-  };
-
-  const updateSetupName = (idx: number, value: string) =>
-    setSetupPlayers((prev) =>
-      prev.map((name, i) => (i === idx ? value : name))
-    );
-
-  const addSetupPlayer = () =>
-    setSetupPlayers((prev) => {
-      const next = [...prev, `Spelare ${prev.length + 1}`];
-      setSetupPile(computeDefaultPile(next.length));
-      return next;
-    });
-
-  const removeSetupPlayer = (idx: number) =>
-    setSetupPlayers((prev) => {
-      if (prev.length <= 2) return prev;
-      const next = prev.filter((_, i) => i !== idx);
-      setSetupPile(computeDefaultPile(next.length));
-      return next;
-    });
-
-  const runNarrativeRoll = async (config: {
-    label: string;
-    items: string[];
-    finalIndex: number;
-    totalMs?: number;
-  }) => {
-    const { label } = config;
-    const totalMs = config.totalMs ?? (debugMode ? 800 : 4000);
-    if (!config.items.length) return;
-    const token = (narrativeRollToken.current += 1);
-
-    const safeFinalIndex = Math.min(
-      Math.max(0, config.finalIndex),
-      config.items.length - 1
-    );
-    const items =
-      config.items.length === 1 ? ["…", config.items[0]] : config.items;
-    const finalIndex = config.items.length === 1 ? 1 : safeFinalIndex;
-
-    const indices = items.map((_, idx) => idx);
-    const baseLoops = Math.max(8, Math.ceil(40 / Math.max(1, indices.length)));
-    const spinPath = buildRandomSpinPath(indices, finalIndex, baseLoops);
-    const stepDurations = normalizeDurationsToTotal(
-      buildLinearStepDurations(spinPath.length, 60, 420),
-      totalMs
-    );
-
-    setNarrativeRoll({ label, trail: [], isRunning: true });
-
-    for (let step = 0; step < spinPath.length; step += 1) {
-      if (narrativeRollToken.current !== token) return;
-      const idx = spinPath[step] ?? finalIndex;
-      const name = items[idx] ?? items[finalIndex] ?? "…";
-      setNarrativeRoll((prev) => ({
-        label,
-        isRunning: true,
-        trail: [...prev.trail, name].slice(-3),
-      }));
-      await wait(stepDurations[step] ?? 0);
-    }
-
-    if (narrativeRollToken.current !== token) return;
-    const finalName = items[finalIndex] ?? "…";
-    setNarrativeRoll({ label, isRunning: false, trail: [finalName] });
-    window.setTimeout(() => {
-      if (narrativeRollToken.current !== token) return;
-      setNarrativeRoll({ label: "", trail: [], isRunning: false });
-    }, 900);
-  };
-
-  const handleRoll = async (forcedRoll?: number, isDebug = false) => {
-    if (phase === "setup" || phase === "ended") return;
-    const actorId = currentPlayer.id;
-    if (isSpinning) return;
-    const actorRolls = rollsRemaining[actorId] ?? WARMUP_ROLLS;
-    if (!isDebug && actorRolls <= 0) return;
-
-    let updatedPlayers = players;
-    let updatedPile = pileCount;
-    let updatedRolls = { ...rollsRemaining };
-    let updatedWarmupRollsTaken = { ...warmupRollsTaken };
-    let nextPhase: GamePhase = phase;
-    let localLog: LogEntry[] = [];
-    let queue = 1;
-    let lastOutcomeLocal: RollOutcome | null = null;
-    let modalQueued = false;
-    let blockingModalQueued = false;
-    const pickRandom = <T>(items: T[]): T | null =>
-      items.length ? items[Math.floor(Math.random() * items.length)] : null;
-
-    // Reset the narrative "player roll" UI every roll so it never lingers.
-    narrativeRollToken.current += 1;
-    setNarrativeRoll({ label: "", trail: [], isRunning: false });
-
-    const availableActions = getAvailableActions(
-      currentPlayerIndex,
-      players,
-      phase
-    );
-    const availableIndices = availableActions.map((roll) => roll - 1);
-    const pileHasGifts = pileCount > 0;
-    const weightedIndices = availableActions.flatMap((roll) => {
-      if (phase === "warmup" && (roll === 1 || roll === 2)) {
-        // Balance: make "Double Grab" noticeably rarer, especially early when
-        // often only (1) and (2) are available. With only rolls 1 & 2:
-        // - Double (1): 1/(1+2) = 33%
-        // - Single (2): 2/(1+2) = 67%
-        if (!pileHasGifts) return [roll - 1];
-        const weight = roll === 1 ? 1 : 2;
-        return Array(weight).fill(roll - 1);
-      }
-      if (phase === "endgame" && roll === 6) {
-        const hasGifts = currentPlayer.packages.length > 0;
-        const weight = hasGifts ? 1 : 3;
-        return Array(Math.max(1, weight)).fill(roll - 1);
-      }
-      return [roll - 1];
-    });
-    const spinPool = weightedIndices.length
-      ? weightedIndices
-      : availableIndices;
-
-    if (!availableIndices.length) {
-      setIsSpinning(false);
-      return;
-    }
-
-    const chosenRoll = typeof forcedRoll === "number" ? forcedRoll : null;
-    if (
-      !isDebug &&
-      chosenRoll !== null &&
-      !availableActions.includes(chosenRoll)
-    ) {
-      setIsSpinning(false);
-      return;
-    }
-
-    setIsSpinning(true);
-
-    const finalRollIndex =
-      chosenRoll !== null ? chosenRoll - 1 : pickFinalRoll(spinPool);
-
-    if (!isDebug) {
-      await runHighlightSequence(spinPool, finalRollIndex);
-      await wait(1000);
-    } else if (chosenRoll !== null) {
-      setHighlightedIndex(chosenRoll - 1);
-      setIsFinalResult(true);
-    }
-
-    let pendingRoll: number | null = chosenRoll ?? finalRollIndex + 1;
-    while (queue > 0) {
-      const roll = pendingRoll ?? Math.floor(Math.random() * 6) + 1;
-      pendingRoll = null;
-      const outcomeTable =
-        phase === "warmup" ? localizedWarmupTable : localizedEndgameTable;
-      lastOutcomeLocal = {
-        roll,
-        title: outcomeTable[roll].title,
-        description: outcomeTable[roll].description,
-        phase,
-      };
-
-      let giveAwayTargetPlayer: TargetOption | null = null;
-      if (phase === "warmup" && roll === 3) {
-        const otherPlayers: TargetOption[] = players
-          .map((p, idx) => ({ player: p, idx }))
-          .filter((_, idx) => idx !== currentPlayerIndex);
-        if (otherPlayers.length) {
-          setShowGiveAwayModal(false);
-          setIsRandomizingTarget(false);
-          setGiveAwayTarget(null);
-          setGiveAwayActorName(null);
-
-          const weighted = otherPlayers.flatMap((opt, idx) =>
-            Array(Math.max(1, opt.player.packages.length + 1)).fill(idx)
-          );
-          const finalIndex =
-            (weighted.length
-              ? weighted[Math.floor(Math.random() * weighted.length)]
-              : 0) ?? 0;
-
-          setNarrativeTitle(outcomeTable[roll].title);
-          setNarrativeBody("");
-          setShowNarrativeModal(true);
-          modalQueued = true;
-
-          await runNarrativeRoll({
-            label: lang === "sv" ? "Slumpar spelare" : "Rolling player",
-            items: otherPlayers.map((o) => o.player.name),
-            finalIndex,
-            totalMs: 4000,
-          });
-          giveAwayTargetPlayer = otherPlayers[finalIndex] ?? null;
-        }
-      }
-
-      let stealTargetPlayer: TargetOption | null = null;
-      if (phase === "warmup" && roll === 4) {
-        const stealablePlayers: TargetOption[] = players
-          .map((p, idx) => ({ player: p, idx }))
-          .filter(
-            ({ player, idx }) =>
-              idx !== currentPlayerIndex &&
-              player.packages.some((pkg) => !pkg.locked)
-          );
-        if (stealablePlayers.length) {
-          setShowStealModal(false);
-          setIsRandomizingTarget(false);
-          setStealTarget(null);
-          setStealActorName(null);
-
-          const weighted = stealablePlayers.flatMap((opt, idx) =>
-            Array(Math.max(1, opt.player.packages.length + 1)).fill(idx)
-          );
-          const finalIndex =
-            (weighted.length
-              ? weighted[Math.floor(Math.random() * weighted.length)]
-              : 0) ?? 0;
-
-          setNarrativeTitle(outcomeTable[roll].title);
-          setNarrativeBody("");
-          setShowNarrativeModal(true);
-          modalQueued = true;
-
-          await runNarrativeRoll({
-            label: lang === "sv" ? "Slumpar spelare" : "Rolling player",
-            items: stealablePlayers.map((o) => o.player.name),
-            finalIndex,
-            totalMs: 4000,
-          });
-          stealTargetPlayer = stealablePlayers[finalIndex] ?? null;
-        }
-      }
-
-      if (phase === "warmup") {
-        const {
-          players: p,
-          pile,
-          logEntries,
-          narrative,
-        } = applyWarmupRoll(
-          roll,
-          updatedPlayers,
-          updatedPile,
-          currentPlayerIndex,
-          t,
-          giveAwayTargetPlayer ? giveAwayTargetPlayer.idx : undefined,
-          stealTargetPlayer ? stealTargetPlayer.idx : undefined
-        );
-        updatedPlayers = p;
-        updatedPile = pile;
-        localLog = [...localLog, ...logEntries];
-        if (narrative && roll !== 3 && roll !== 4) {
-          setNarrativeTitle(outcomeTable[roll].title);
-          setNarrativeBody(narrative);
-          setShowNarrativeModal(true);
-          modalQueued = true;
-        }
-        if (roll === 3 && narrative) {
-          setNarrativeBody(narrative);
-          setNarrativeTitle(outcomeTable[roll].title);
-          setShowNarrativeModal(false);
-        }
-        if (roll === 4 && narrative) {
-          setNarrativeBody(narrative);
-          setNarrativeTitle(outcomeTable[roll].title);
-          setShowNarrativeModal(false);
-        }
-        if (!isDebug) {
-          updatedWarmupRollsTaken[actorId] =
-            (updatedWarmupRollsTaken[actorId] ?? 0) + 1;
-        }
-      } else if (phase === "endgame") {
-        let flipTargetIndex: number | undefined;
-        let trashTargetIndex: number | undefined;
-        let jokerTargetIndices: [number, number] | undefined;
-        let santaTargetIndex: number | undefined;
-        let forcedDirection: "left" | "right" | undefined;
-
-        if (roll === 2) {
-          const targets = updatedPlayers
-            .map((p, idx) => ({ player: p, idx }))
-            .filter((_, idx) => idx !== currentPlayerIndex)
-            // Full Flip only makes sense against players with unlocked gifts.
-            // Keep this consistent with `endgameTable[2].requires` and `applyEndgameRoll`.
-            .filter(({ player }) => player.packages.some((pkg) => !pkg.locked));
-          if (targets.length === 1) {
-            flipTargetIndex = targets[0].idx;
-          } else if (targets.length) {
-            modalQueued = true;
-            const finalIndex = Math.max(
-              0,
-              targets.findIndex((tgt) => tgt.idx === pickRandom(targets)?.idx)
-            );
-            setNarrativeTitle(outcomeTable[roll].title);
-            setNarrativeBody("");
-            setShowNarrativeModal(true);
-            await runNarrativeRoll({
-              label: lang === "sv" ? "Slumpar spelare" : "Rolling player",
-              items: targets.map((tgt) => tgt.player.name),
-              finalIndex,
-              totalMs: 4000,
-            });
-            flipTargetIndex = targets[finalIndex]?.idx;
-          }
-        }
-
-        if (roll === 3) {
-          const targets = updatedPlayers
-            .map((p, idx) => ({ player: p, idx }))
-            .filter((_, idx) => idx !== currentPlayerIndex);
-          if (targets.length) {
-            modalQueued = true;
-            const finalIndex = Math.max(
-              0,
-              targets.findIndex((tgt) => tgt.idx === pickRandom(targets)?.idx)
-            );
-            setNarrativeTitle(outcomeTable[roll].title);
-            setNarrativeBody("");
-            setShowNarrativeModal(true);
-            await runNarrativeRoll({
-              label: lang === "sv" ? "Slumpar spelare" : "Rolling player",
-              items: targets.map((tgt) => tgt.player.name),
-              finalIndex,
-              totalMs: 4000,
-            });
-            trashTargetIndex = targets[finalIndex]?.idx;
-          }
-        }
-
-        if (roll === 4) {
-          const available = updatedPlayers.map((p, idx) => ({
-            player: p,
-            idx,
-          }));
-          const donors = available.filter(({ player }) =>
-            player.packages.some((pkg) => !pkg.locked)
-          );
-          if (available.length >= 2 && donors.length > 0) {
-            modalQueued = true;
-            const pairs: {
-              label: string;
-              first: TargetOption;
-              second: TargetOption;
-            }[] = [];
-            for (let i = 0; i < available.length; i += 1) {
-              for (let j = i + 1; j < available.length; j += 1) {
-                const a = available[i];
-                const b = available[j];
-                const aEligible = donors.some((d) => d.idx === a.idx);
-                const bEligible = donors.some((d) => d.idx === b.idx);
-                if (!aEligible && !bEligible) continue;
-                pairs.push({
-                  label: `${a.player.name}↔${b.player.name}`,
-                  first: a,
-                  second: b,
-                });
-              }
-            }
-            if (pairs.length) {
-              const weighted = pairs.flatMap((pair, idx) => {
-                const weight =
-                  (pair.first.player.packages.length + 1) *
-                  (pair.second.player.packages.length + 1);
-                return Array(Math.max(1, weight)).fill(idx);
-              });
-              const finalIndex =
-                (weighted.length
-                  ? weighted[Math.floor(Math.random() * weighted.length)]
-                  : 0) ?? 0;
-
-              setNarrativeTitle(outcomeTable[roll].title);
-              setNarrativeBody("");
-              setShowNarrativeModal(true);
-              await runNarrativeRoll({
-                label: lang === "sv" ? "Slumpar spelare" : "Rolling players",
-                items: pairs.map((p) => p.label),
-                finalIndex,
-                totalMs: 4000,
-              });
-
-              const final = pairs[finalIndex];
-              jokerTargetIndices = final
-                ? [final.first.idx, final.second.idx]
-                : undefined;
-            }
-          }
-        }
-
-        if (roll === 5) {
-          const targets = updatedPlayers
-            .map((p, idx) => ({ player: p, idx }))
-            .filter((_, idx) => idx !== currentPlayerIndex);
-          if (targets.length === 1) {
-            santaTargetIndex = targets[0].idx;
-          } else if (targets.length) {
-            modalQueued = true;
-            const finalIndex = Math.max(
-              0,
-              targets.findIndex((tgt) => tgt.idx === pickRandom(targets)?.idx)
-            );
-            setNarrativeTitle(outcomeTable[roll].title);
-            setNarrativeBody("");
-            setShowNarrativeModal(true);
-            await runNarrativeRoll({
-              label: lang === "sv" ? "Slumpar spelare" : "Rolling player",
-              items: targets.map((tgt) => tgt.player.name),
-              finalIndex,
-              totalMs: 4000,
-            });
-            santaTargetIndex = targets[finalIndex]?.idx;
-          }
-        }
-
-        if (roll === 6) {
-          modalQueued = true;
-          forcedDirection = Math.random() > 0.5 ? "right" : "left";
-        }
-
-        const {
-          players: p,
-          pile,
-          logEntries,
-          narrative,
-        } = applyEndgameRoll(
-          roll,
-          updatedPlayers,
-          updatedPile,
-          currentPlayerIndex,
-          t,
-          {
-            flipTargetIndex,
-            trashTargetIndex,
-            jokerTargetIndices,
-            santaTargetIndex,
-            forcedDirection,
-          }
-        );
-        updatedPlayers = p;
-        updatedPile = pile;
-        localLog = [...localLog, ...logEntries];
-        if (narrative) {
-          setNarrativeTitle(outcomeTable[roll].title);
-          setNarrativeBody(narrative);
-          setShowNarrativeModal(true);
-          modalQueued = true;
-        }
-      }
-
-      if (!isDebug) {
-        updatedRolls[actorId] = Math.max(0, updatedRolls[actorId] - 1);
-      }
-      queue -= 1;
-    }
-
-    const remaining = Object.values(updatedRolls).reduce(
-      (sum, v) => sum + v,
-      0
-    );
-    if (phase === "warmup") {
-      const everyoneHitBase = updatedPlayers.every(
-        (p) => (updatedWarmupRollsTaken[p.id] ?? 0) >= WARMUP_ROLLS
-      );
-      const warmupComplete = updatedPile <= 0 && everyoneHitBase;
-
-      if (warmupComplete) {
-        nextPhase = "endgame";
-        updatedRolls = Object.fromEntries(
-          updatedPlayers.map((p) => [p.id, ENDGAME_ROLLS])
-        );
-        localLog = [
-          {
-            id: uid(),
-            message: "Endgame begins. Three rolls each!",
-          },
-          ...localLog,
-        ];
-      } else if (remaining === 0) {
-        if (updatedPile > 0) {
-          updatedRolls = Object.fromEntries(
-            updatedPlayers.map((p) => [p.id, 1])
-          );
-        } else {
-          updatedRolls = Object.fromEntries(
-            updatedPlayers.map((p) => [
-              p.id,
-              Math.max(0, WARMUP_ROLLS - (updatedWarmupRollsTaken[p.id] ?? 0)),
-            ])
-          );
-        }
-      }
-    } else if (phase === "endgame" && remaining === 0) {
-      nextPhase = "ended";
-    }
-
-    const transitionToEndgame = phase === "warmup" && nextPhase === "endgame";
-    const nextPlayerIndex = computeNextPlayerIndex(
-      updatedRolls,
-      updatedPlayers,
-      nextPhase
-    );
-
-    setPlayers(updatedPlayers);
-    setPileCount(updatedPile);
-    setRollsRemaining(updatedRolls);
-    setWarmupRollsTaken(updatedWarmupRollsTaken);
-    setLastOutcome(lastOutcomeLocal);
-    setLog((prev) => [...localLog, ...prev].slice(0, 60));
-
-    const transitionData = {
-      nextPhase,
-      nextPlayerIndex,
-      rolls: updatedRolls,
-    };
-
-    const hasBlockingModal =
-      blockingModalQueued ||
-      showGiveAwayModal ||
-      showStealModal ||
-      showSelectionModal ||
-      isRandomizingSelection ||
-      isRandomizingTarget;
-
-    if (transitionToEndgame || modalQueued) {
-      setPendingPhaseTransition(transitionData);
-      if (!hasBlockingModal) {
-        runPendingPhaseTransition(transitionData);
-      }
-    } else {
-      advanceTurn(updatedRolls, nextPhase, updatedPlayers);
-    }
-    setIsSpinning(false);
-  };
-
-  const debugCyclePhase = () => {
-    if (!debugMode) return;
-    if (phase === "warmup") {
-      const rolls = Object.fromEntries(
-        players.map((p) => [p.id, ENDGAME_ROLLS])
-      );
-      setPhase("endgame");
-      setRollsRemaining(rolls);
-      setPhaseBanner(t("ui.banner.endgame"));
-      return;
-    }
-    if (phase === "endgame") {
-      const rolls = Object.fromEntries(
-        players.map((p) => [p.id, WARMUP_ROLLS])
-      );
-      setPhase("warmup");
-      setWarmupRollsTaken(Object.fromEntries(players.map((p) => [p.id, 0])));
-      setRollsRemaining(rolls);
-      setPhaseBanner(t("ui.rules.warmup"));
-      return;
-    }
-    const rolls = Object.fromEntries(players.map((p) => [p.id, WARMUP_ROLLS]));
-    setPhase("warmup");
-    setWarmupRollsTaken(Object.fromEntries(players.map((p) => [p.id, 0])));
-    setRollsRemaining(rolls);
-    setPhaseBanner(t("ui.rules.warmup"));
-  };
-
-  const handleCloseNarrativeModal = () => {
-    setShowNarrativeModal(false);
-    runPendingPhaseTransition();
-  };
-
-  const handleCloseSelectionModal = () => {
-    setShowSelectionModal(false);
-    setIsRandomizingSelection(false);
-    runPendingPhaseTransition();
-  };
-
-  const handleCloseGiveAwayModal = () => {
-    setShowGiveAwayModal(false);
-    runPendingPhaseTransition();
-  };
-
-  const handleCloseStealModal = () => {
-    setShowStealModal(false);
-    runPendingPhaseTransition();
-  };
-
-  const handleCloseGameEndedModal = () => {
-    setShowGameEndedModal(false);
-  };
-
-  const currentPhaseLabel =
-    phase === "setup"
-      ? t("ui.setup.title")
-      : phase === "warmup"
-      ? t("ui.rules.warmup")
-      : phase === "endgame"
-      ? t("ui.rules.endgame")
-      : t("ui.phase.ended");
-
-  const playerRolls = currentPlayer.id
-    ? rollsRemaining[currentPlayer.id] ?? WARMUP_ROLLS
-    : 0;
-  const canRoll =
-    debugMode ||
-    (phase !== "setup" &&
-      phase !== "ended" &&
-      !pendingPhaseTransition &&
-      Boolean(currentPlayer.id) &&
-      playerRolls > 0);
-
+  // ---------- Persistence ----------
   useEffect(() => {
-    const prevPhase = prevPhaseRef.current;
-    if (prevPhase === "endgame" && phase === "ended") {
-      setShowGameEndedModal(true);
-    }
-    prevPhaseRef.current = phase;
-  }, [phase]);
-
-  useEffect(() => {
-    const savedLang = localStorage.getItem(LANG_KEY) as Lang | null;
-    if (savedLang) setLang(savedLang);
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      setIsHydrating(false);
-      return;
-    }
-    try {
-      const parsed = JSON.parse(raw) as {
-        phase: GamePhase;
-        players: Player[];
-        pileCount: number;
-        currentPlayerIndex: number;
-        rollsRemaining: Record<string, number>;
-        warmupRollsTaken: Record<string, number>;
-        log: LogEntry[];
-        lastOutcome: RollOutcome | null;
-        setupPlayers: string[];
-        setupPile: number;
-      };
-      setPhase(parsed.phase);
-      prevPhaseRef.current = parsed.phase;
-      setPlayers(parsed.players);
-      setPileCount(parsed.pileCount);
-      setCurrentPlayerIndex(parsed.currentPlayerIndex);
-      setRollsRemaining(parsed.rollsRemaining);
-      setWarmupRollsTaken(parsed.warmupRollsTaken);
-      setLog(parsed.log ?? []);
-      setLastOutcome(parsed.lastOutcome);
-      setSetupPlayers(parsed.setupPlayers ?? playersSeed.map((p) => p.name));
-      setSetupPile(
-        parsed.setupPile ??
-          computeDefaultPile(parsed.setupPlayers?.length ?? playersSeed.length)
-      );
-    } catch (e) {
-      console.error("Failed to hydrate state", e);
-    } finally {
-      setIsHydrating(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isHydrating) return;
-    persistState({
+    writeJson(STORAGE_KEY, {
       phase,
       players,
-      pileCount,
-      currentPlayerIndex,
-      rollsRemaining,
-      warmupRollsTaken,
-      log,
-      lastOutcome,
-      setupPlayers,
+      pile,
+      current,
+      rolls,
+      warmupTaken,
+      log: log.slice(0, 120),
+      result,
+      setupNames: names,
       setupPile,
-    });
+      pileTouched,
+      setupStep,
+      seatOrder,
+    } satisfies SavedGame);
   }, [
-    isHydrating,
     phase,
     players,
-    pileCount,
-    currentPlayerIndex,
-    rollsRemaining,
-    warmupRollsTaken,
+    pile,
+    current,
+    rolls,
+    warmupTaken,
     log,
-    lastOutcome,
-    setupPlayers,
+    result,
+    names,
     setupPile,
+    pileTouched,
+    setupStep,
+    seatOrder,
   ]);
 
   useEffect(() => {
-    localStorage.setItem(LANG_KEY, lang);
-  }, [lang]);
+    writeJson(SETTINGS_KEY, { lang, sound, turbo } satisfies Settings);
+    document.documentElement.lang = lang;
+  }, [lang, sound, turbo]);
+
+  // ---------- Setup ----------
+  const applyNames = (next: string[]) => {
+    setNames(next);
+    setSetupError(null);
+    if (!pileTouched) setSetupPileRaw(suggestedPile(cleanNames(next).length));
+  };
+
+  const addNames = (raw: string) => {
+    const incoming = raw
+      .split(/[,;\n\t]+/)
+      .map((n) => n.trim().slice(0, MAX_NAME))
+      .filter(Boolean);
+    if (!incoming.length) return;
+    applyNames([...names, ...incoming].slice(0, MAX_PLAYERS));
+  };
+
+  const renamePlayer = (idx: number, value: string) =>
+    applyNames(names.map((n, i) => (i === idx ? value.slice(0, MAX_NAME) : n)));
+
+  const removePlayer = (idx: number) => applyNames(names.filter((_, i) => i !== idx));
+
+  const setSetupPile = (value: number) => {
+    setPileTouched(true);
+    setSetupError(null);
+    setSetupPileRaw(Math.max(0, Math.min(999, Math.round(value) || 0)));
+  };
+
+  const applySuggestedPile = () => {
+    setPileTouched(false);
+    setSetupPileRaw(suggestedPile(cleanNames(names).length));
+  };
+
+  const validate = (): string[] | null => {
+    const cleaned = cleanNames(names);
+    if (cleaned.length < 2) {
+      setSetupError({ key: "setup.error.few" });
+      return null;
+    }
+    const seen = new Set<string>();
+    for (const name of cleaned) {
+      const key = name.toLowerCase();
+      if (seen.has(key)) {
+        setSetupError({ key: "setup.error.dupes", params: { name } });
+        return null;
+      }
+      seen.add(key);
+    }
+    if (setupPile < 1) {
+      setSetupError({ key: "setup.error.pile" });
+      return null;
+    }
+    setSetupError(null);
+    return cleaned;
+  };
+
+  const shuffleSeating = async () => {
+    if (busyRef.current) return;
+    const cleaned = validate();
+    if (!cleaned) return;
+    busyRef.current = true;
+    const token = ++tokenRef.current;
+    setNames(cleaned);
+    setSetupStep("seating");
+    setIsShufflingSeats(true);
+    setStarterSeat(null);
+    setStarterLocked(false);
+    window.scrollTo?.({ top: 0, behavior: "smooth" });
+    const frames = 14;
+    const durations = brakingDurations(frames, 1800 * speed);
+    for (let i = 0; i < frames; i += 1) {
+      if (tokenRef.current !== token) return;
+      setSeatOrder(shuffle(cleaned));
+      play("tick");
+      await wait(durations[i]);
+    }
+    if (tokenRef.current !== token) return;
+    setSeatOrder((prev) => shuffleSeats(cleaned, seatOrder.length ? seatOrder : prev));
+    setIsShufflingSeats(false);
+    play("land");
+    emitFx({ kind: "grab" });
+    busyRef.current = false;
+  };
+
+  const editPlayers = () => {
+    if (busyRef.current) return;
+    setSetupStep("players");
+  };
+
+  const startGame = async () => {
+    if (busyRef.current || !seatOrder.length) return;
+    busyRef.current = true;
+    const token = ++tokenRef.current;
+    const count = seatOrder.length;
+    const starter = Math.floor(Math.random() * count);
+    const hops = count * 2 + ((starter - 0 + count) % count);
+    const path = Array.from({ length: hops + 1 }, (_, i) => i % count);
+    const ok = await runPath(
+      path,
+      brakingDurations(path.length, 2600 * speed),
+      (seat) => {
+        setStarterSeat(seat);
+        play("tick");
+      },
+      () => tokenRef.current !== token
+    );
+    if (!ok) return;
+    setStarterLocked(true);
+    play("land");
+    await wait(1400 * speed);
+    if (tokenRef.current !== token) return;
+
+    const roster: Player[] = seatOrder.map((name) => ({ id: uid(), name, packages: [] }));
+    setPlayers(roster);
+    setPile(setupPile);
+    setCurrent(starter);
+    setRolls(Object.fromEntries(roster.map((p) => [p.id, WARMUP_ROLLS])));
+    setWarmupTaken(Object.fromEntries(roster.map((p) => [p.id, 0])));
+    setLog([{ id: uid(), key: "log.start", params: { name: roster[starter].name }, phase: "warmup" }]);
+    setResult(null);
+    setStage("idle");
+    setHighlightedRoll(null);
+    setIsFinal(false);
+    setTargetSeats([]);
+    setBanner(null);
+    setShowEnd(false);
+    setPhase("warmup");
+    setStarterSeat(null);
+    setStarterLocked(false);
+    emitFx({ kind: "start" });
+    play("fanfare");
+    busyRef.current = false;
+  };
+
+  // ---------- Game ----------
+  const rollTargets = async (
+    rollPhase: GamePhase,
+    roll: number,
+    actor: number,
+    isCancelled: () => boolean
+  ): Promise<ActionTargets | null> => {
+    const spec = targetOptions(rollPhase, roll, players, actor);
+    if (!spec || !spec.options.length) return {};
+    const finalIdx = pickWeighted(spec.weights);
+    setTargetKind(spec.kind);
+    setStage("targeting");
+    if (spec.options.length > 1) {
+      const indices = spec.options.map((_, i) => i);
+      const path = buildSpinPath(indices, finalIdx, Math.max(16, Math.min(40, indices.length * 4)));
+      const ok = await runPath(
+        path,
+        brakingDurations(path.length, 2600 * speed),
+        (i) => {
+          setTargetSeats(spec.options[i]);
+          play("tick");
+        },
+        isCancelled
+      );
+      if (!ok) return null;
+    }
+    setTargetSeats(spec.options[finalIdx]);
+    play("land");
+    await wait(650 * speed);
+    if (isCancelled()) return null;
+    const picked = spec.options[finalIdx];
+    return spec.kind === "pair" ? { pair: [picked[0], picked[1]] } : { target: picked[0] };
+  };
+
+  const roll = async (forced?: number) => {
+    if (busyRef.current || banner) return;
+    if (phase !== "warmup" && phase !== "endgame") return;
+    const actor = players[current];
+    if (!actor) return;
+    const isForced = forced !== undefined && debug;
+    if (!isForced && (rolls[actor.id] ?? 0) <= 0) return;
+
+    busyRef.current = true;
+    const token = ++tokenRef.current;
+    const isCancelled = () => tokenRef.current !== token;
+    const rollPhase = phase;
+
+    setResult(null);
+    setTargetSeats([]);
+    setIsFinal(false);
+
+    const table = getPhaseTable(rollPhase);
+    const available = Object.keys(table)
+      .map(Number)
+      .filter((r) => {
+        const req = table[r].requires;
+        return (!req || req(current, players, pile)) && rollWeight(rollPhase, r, actor, pile) > 0;
+      });
+
+    let chosen = 0;
+    if (isForced) {
+      chosen = forced;
+      setHighlightedRoll(chosen);
+      setIsFinal(true);
+    } else if (available.length) {
+      chosen = available[pickWeighted(available.map((r) => rollWeight(rollPhase, r, actor, pile)))];
+      setStage("spinning");
+      const path = buildSpinPath(available, chosen, Math.max(14, available.length * 4));
+      const ok = await runPath(
+        path,
+        brakingDurations(path.length, 3000 * speed),
+        (r) => {
+          setHighlightedRoll(r);
+          play("tick");
+        },
+        isCancelled
+      );
+      if (!ok) return;
+      setIsFinal(true);
+      play("land");
+      await wait(700 * speed);
+      if (isCancelled()) return;
+    } else {
+      setHighlightedRoll(null);
+    }
+
+    const targets = chosen ? await rollTargets(rollPhase, chosen, current, isCancelled) : {};
+    if (targets === null) return;
+
+    const outcome = applyRoll(rollPhase, chosen, players, pile, current, targets);
+
+    const before = giftCounts(players);
+    const after = giftCounts(outcome.players);
+    const deltas: Record<string, number> = {};
+    for (const id of Object.keys(after)) {
+      const diff = after[id] - (before[id] ?? 0);
+      if (diff) deltas[id] = diff;
+    }
+
+    const nextRolls = { ...rolls };
+    const nextTaken = { ...warmupTaken };
+    if (!isForced) {
+      nextRolls[actor.id] = Math.max(0, (nextRolls[actor.id] ?? 0) - 1);
+      if (rollPhase === "warmup") nextTaken[actor.id] = (nextTaken[actor.id] ?? 0) + 1;
+    }
+
+    let nextPhase: GamePhase = rollPhase;
+    let finalRolls = nextRolls;
+    const extraLog: Message[] = [];
+    const remaining = Object.values(nextRolls).reduce((sum, v) => sum + v, 0);
+
+    if (rollPhase === "warmup") {
+      const everyoneDone = outcome.players.every((p) => (nextTaken[p.id] ?? 0) >= WARMUP_ROLLS);
+      if (outcome.pile <= 0 && everyoneDone) {
+        nextPhase = "endgame";
+        finalRolls = Object.fromEntries(outcome.players.map((p) => [p.id, ENDGAME_ROLLS]));
+        extraLog.push({ key: "log.endgameBegins", params: { rolls: ENDGAME_ROLLS } });
+      } else if (remaining === 0) {
+        if (outcome.pile > 0) {
+          finalRolls = Object.fromEntries(outcome.players.map((p) => [p.id, 1]));
+          extraLog.push({ key: "log.extraRound" });
+        } else {
+          finalRolls = Object.fromEntries(
+            outcome.players.map((p) => [p.id, Math.max(0, WARMUP_ROLLS - (nextTaken[p.id] ?? 0))])
+          );
+        }
+      }
+    } else if (remaining === 0) {
+      nextPhase = "ended";
+    }
+
+    let nextIdx = current;
+    if (nextPhase !== "ended") {
+      for (let i = 1; i <= outcome.players.length; i += 1) {
+        const idx = (current + i) % outcome.players.length;
+        if ((finalRolls[outcome.players[idx].id] ?? 0) > 0) {
+          nextIdx = idx;
+          break;
+        }
+      }
+    }
+
+    const newEntries: LogEntry[] = [
+      ...extraLog.map((m) => ({ ...m, id: uid(), phase: nextPhase })),
+      ...outcome.log.map((m) => ({ ...m, id: uid(), phase: rollPhase })),
+    ];
+
+    setPlayers(outcome.players);
+    setPile(outcome.pile);
+    setRolls(finalRolls);
+    setWarmupTaken(nextTaken);
+    setLog((prev) => [...newEntries, ...prev].slice(0, 120));
+    setCurrent(nextIdx);
+    setTargetSeats([]);
+    setResult({
+      roll: chosen,
+      phase: rollPhase,
+      narrative: outcome.narrative,
+      fx: outcome.fx,
+      seats: outcome.seats,
+      direction: outcome.direction,
+      deltas,
+      key: Date.now(),
+    });
+    setStage("result");
+    emitFx({ kind: outcome.fx });
+    play(fxSound[outcome.fx]);
+
+    if (nextPhase !== rollPhase) {
+      setPhase(nextPhase);
+      if (nextPhase === "endgame") {
+        setHighlightedRoll(null);
+        setIsFinal(false);
+        await wait(900 * speed);
+        if (isCancelled()) return;
+        setBanner("endgame");
+        emitFx({ kind: "endgame" });
+        play("boom");
+      } else if (nextPhase === "ended") {
+        await wait(1800 * speed);
+        if (isCancelled()) return;
+        setShowEnd(true);
+        emitFx({ kind: "victory" });
+        play("fanfare");
+      }
+    }
+    busyRef.current = false;
+  };
+
+  const dismissBanner = () => setBanner(null);
+
+  const newGame = (toStep: SetupStep = "players") => {
+    tokenRef.current += 1;
+    busyRef.current = false;
+    if (players.length) setNames(players.map((p) => p.name));
+    setPhase("setup");
+    setPlayers([]);
+    setPile(0);
+    setCurrent(0);
+    setRolls({});
+    setWarmupTaken({});
+    setLog([]);
+    setResult(null);
+    setBanner(null);
+    setShowEnd(false);
+    setStage("idle");
+    setHighlightedRoll(null);
+    setIsFinal(false);
+    setTargetSeats([]);
+    setIsShufflingSeats(false);
+    setStarterSeat(null);
+    setStarterLocked(false);
+    setSetupStep(toStep);
+    if (toStep === "players") removeKey(STORAGE_KEY);
+  };
+
+  const playAgain = () => {
+    newGame("seating");
+    // Re-shuffle so the same crew gets new neighbours.
+    setTimeout(() => void shuffleSeating(), 50);
+  };
+
+  const debugSkipPhase = () => {
+    if (!debug || busyRef.current) return;
+    if (phase === "warmup") {
+      setPile(0);
+      setPhase("endgame");
+      setRolls(Object.fromEntries(players.map((p) => [p.id, ENDGAME_ROLLS])));
+      setHighlightedRoll(null);
+      setBanner("endgame");
+    } else if (phase === "endgame") {
+      setRolls(Object.fromEntries(players.map((p) => [p.id, 0])));
+      setPhase("ended");
+      setShowEnd(true);
+    }
+  };
+
+  const currentPlayer = players[current] ?? null;
+  const currentRolls = currentPlayer ? (rolls[currentPlayer.id] ?? 0) : 0;
+  const isBusy = stage === "spinning" || stage === "targeting";
+  const canRoll =
+    (phase === "warmup" || phase === "endgame") &&
+    !isBusy &&
+    !banner &&
+    Boolean(currentPlayer) &&
+    currentRolls > 0;
+  const totalRolls = Object.values(rolls).reduce((sum, v) => sum + v, 0);
 
   return {
     // i18n
     lang,
     setLang,
     t,
-    // phase/state
-    phase,
-    currentPhaseLabel,
-    phaseTable,
-    localizedWarmupTable,
-    localizedEndgameTable,
-    currentPlayer,
-    players,
-    pileCount,
-    currentPlayerIndex,
-    rollsRemaining,
-    totalRollsLeft,
-    warmupRollsTaken,
-    log,
-    lastOutcome,
-    // control
-    debugMode,
-    setDebugMode,
-    debugCyclePhase,
-    resetGame,
-    handleRoll,
-    canRoll,
-    isSpinning,
-    highlightedIndex,
-    isFinalResult,
+    tm,
+    possessive: (name: string) => possessive(lang, name),
+    // settings
+    sound,
+    setSound,
+    turbo,
+    setTurbo,
+    debug,
+    setDebug,
     // setup
-    setupPlayers,
+    names,
+    addNames,
+    renamePlayer,
+    removePlayer,
     setupPile,
-    setupHighlightedIndex,
-    isSetupRandomizing,
-    updateSetupName,
-    addSetupPlayer,
-    removeSetupPlayer,
     setSetupPile,
-    startGameWithSetup,
-    pendingOrder,
-    showOrderModal,
-    setShowOrderModal,
-    isStartingGame,
-    beginGameFromPending,
-    // modals + banners
-    phaseBanner,
-    setPhaseBanner,
-    showGameEndedModal,
-    handleCloseGameEndedModal,
-    showGiveAwayModal,
-    giveAwayTarget,
-    giveAwayActorName,
-    isRandomizingTarget,
-    showStealModal,
-    stealTarget,
-    stealActorName,
-    narrativeTitle,
-    narrativeBody,
-    showNarrativeModal,
-    narrativeRoll,
-    handleCloseNarrativeModal,
-    handleCloseGiveAwayModal,
-    handleCloseStealModal,
-    showSelectionModal,
-    selectionTitle,
-    selectionVerb,
-    selectionActorName,
-    selectionTarget,
-    selectionLeadEmoji,
-    selectionTrailEmoji,
-    isRandomizingSelection,
-    handleCloseSelectionModal,
+    pileTouched,
+    applySuggestedPile,
+    suggestedPile: suggestedPile(cleanNames(names).length),
+    setupStep,
+    setupError,
+    seatOrder,
+    isShufflingSeats,
+    shuffleSeating,
+    editPlayers,
+    startGame,
+    starterSeat,
+    starterLocked,
+    maxPlayers: MAX_PLAYERS,
+    // game
+    phase,
+    players,
+    pile,
+    current,
+    currentPlayer,
+    currentRolls,
+    rolls,
+    totalRolls,
+    log,
+    result,
+    banner,
+    dismissBanner,
+    showEnd,
+    setShowEnd,
+    stage,
+    highlightedRoll,
+    isFinal,
+    targetSeats,
+    targetKind,
+    canRoll,
+    isBusy,
+    roll,
+    newGame,
+    playAgain,
+    debugSkipPhase,
   };
 };
+
+export type ChaosGame = ReturnType<typeof useChaosGame>;
