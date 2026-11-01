@@ -1,335 +1,402 @@
 export type Lang = "en" | "sv";
 
-export const messages: Record<Lang, Record<string, string>> = {
-  en: {
-    "ui.hero.title": "Christmas Chaos Game",
-    "ui.hero.eyebrow": "Gift exchange, but chaos",
-    "ui.hero.subtitle":
-      "Gift exchange with dice rolls where luck drives the drama.",
-    "ui.setup.title": "Players & Gifts",
-    "ui.setup.hint": "",
-    "ui.setup.playerPlaceholder": "Player {num}",
-    "ui.setup.addPlayer": "+ Add player",
-    "ui.setup.remove": "Remove",
-    "ui.setup.total": "Total gifts",
-    "ui.setup.randomize": "Randomize order & start",
-    "ui.setup.randomizing": "Randomizing…",
-    "ui.order.heading": "Turn order",
-    "ui.order.subtitle": "Who gets to start first? 🎲",
-    "ui.order.playerFallback": "Player {num}",
-    "ui.order.start": "Start Christmas Chaos",
-    "ui.order.starting": "Wrapping all the gifts…",
-    "ui.banner.endgame": "Phase 2: Endgame — three rolls each!",
-    "ui.banner.body": "Hold on to your gifts — the chaos just got wilder.",
-    "ui.banner.cta": "Let’s go",
-    "ui.status.pile": "Pile",
-    "ui.status.current": "Current player",
-    "ui.status.rollsPlayer": "Rolls left (player)",
-    "ui.status.rollsTotal": "Rolls left (total)",
-    "ui.lastRoll": "Last roll",
-    "ui.lastRoll.empty": "No rolls yet.",
-    "ui.rules.warmup": "Phase 1 — Warm up",
-    "ui.rules.endgame": "Phase 2 — Endgame",
-    "ui.rules.lockedNote":
-      "Frozen gifts stay with their owner — they cannot be traded, stolen, given away, or rotated.",
-    "ui.phase.ended": "Game ended",
-    "ui.reset": "Reset game",
-    "ui.debug.on": "Debug on",
-    "ui.debug.off": "Debug off",
-    "ui.debug.togglePhase": "Toggle phase (debug)",
-    "ui.roll.btn": "Randomize",
-    "ui.roll.randomizing": "Randomizing…",
-    "ui.roll.finished": "Finished",
-    "ui.lang.en": "EN",
-    "ui.lang.sv": "SV",
-    "ui.randomizer.headingWarmup": "ROLLING PLAYER",
-    "ui.randomizer.headingEndgame": "ROLLING PLAYER",
-    "ui.randomizer.hint": "Pick a random action",
-    "ui.randomizer.hintDebug": "Click any action to trigger (debug)",
-    "ui.players.title": "Players",
-    "ui.players.legend": "🎁 unlocked · 🔒🎁 locked",
-    "ui.players.empty": "No gifts",
-    "ui.log.title": "Action log",
-    "ui.log.subtitle": "Newest first",
-    "ui.log.empty": "No actions yet.",
-    "ui.modal.giveVerb": "gives a gift to",
-    "ui.modal.stealVerb": "steals from",
-    "ui.modal.flipVerb": "swaps all gifts with",
-    "ui.modal.trashVerb": "will swap unwanted gifts with",
-    "ui.modal.jokerPairVerb": "picks two players to swap gifts",
-    "ui.modal.santaVerb": "gets to pick any gift from",
-    "ui.modal.twistVerb": "rotates all gifts to",
-    "ui.modal.gameEnded.title": "Game ended",
-    "ui.modal.gameEnded.line1":
-      "All gifts have been handed out and the game is over. ",
-    "ui.modal.gameEnded.line2": "Hope you had fun!",
-    "ui.modal.gameEnded.line3":
-      'If you want to start over, choose "Reset" in the menu.',
-    "ui.modal.close": "Close",
-    "ui.narrative.placeholder": "Waiting for the next action…",
+type Dict = Record<string, string>;
 
-    // Action titles/descriptions
-    "actions.warmup.1.title": "Double Grab",
-    "actions.warmup.1.desc": "Take any two gifts from the pile.",
-    "actions.warmup.2.title": "Single Grab",
-    "actions.warmup.2.desc": "Take one gift from the pile.",
-    "actions.warmup.3.title": "Forced Tribute",
-    "actions.warmup.3.desc": "Give one of your gifts to a random player.",
-    "actions.warmup.4.title": "The Grinch Tax",
-    "actions.warmup.4.desc": "Steal any gift from a random player.",
-    "actions.warmup.5.title": "Tiny Toss Right",
-    "actions.warmup.5.desc": "Send your smallest unlocked gift to the right.",
-    "actions.warmup.6.title": "Mega Move Left",
-    "actions.warmup.6.desc": "Send your largest unlocked gift to the left.",
+const en: Dict = {
+  // Brand
+  "brand.name": "Christmas Chaos",
+  "brand.tagline": "The gift game. On steroids.",
+  "brand.pitch":
+    "Real gifts on the table. A phone or TV running the show. Every roll can make you rich, broke or frozen. Nobody is safe. Not even Grandma.",
 
-    "actions.endgame.1.title": "Ice Lock",
-    "actions.endgame.1.desc":
-      "Freeze one gift. Frozen gifts cannot be traded, stolen, given away, or rotated.",
-    "actions.endgame.2.title": "Full Flip",
-    "actions.endgame.2.desc":
-      "Swap all unlocked gifts with a random player. Frozen gifts stay put.",
-    "actions.endgame.3.title": "Trash Trade",
-    "actions.endgame.3.desc":
-      "Two players each pick an unwanted gift and swap with each other.",
-    "actions.endgame.4.title": "Joker Swap",
-    "actions.endgame.4.desc":
-      "Two players each choose any gift from the other to swap.",
-    "actions.endgame.5.title": "Santa's Hand",
-    "actions.endgame.5.desc": "Give away a gift chosen by another player.",
-    "actions.endgame.6.title": "Twist of Fate",
-    "actions.endgame.6.desc":
-      "Everyone rotates all gifts one step left or right.",
+  // Setup
+  "setup.players.title": "Who's in?",
+  "setup.players.hint": "Type a name and hit Enter. Paste a list with commas, it works.",
+  "setup.players.add": "Add",
+  "setup.players.placeholder": "Name…",
+  "setup.players.remove": "Remove {name}",
+  "setup.players.count": "{count} players",
+  "setup.pile.title": "Gifts in the pile",
+  "setup.pile.hint": "Tip: {suggested} gifts ({per} per player).",
+  "setup.pile.auto": "Use {suggested}",
+  "setup.cta.seat": "Shuffle the seats",
+  "setup.error.few": "You need at least two players. Chaos needs victims.",
+  "setup.error.dupes": "Two players can't share a name: {name}",
+  "setup.error.pile": "The pile needs at least one gift.",
+  "setup.step.players": "Players",
+  "setup.step.seats": "Seats",
+  "setup.step.play": "Chaos",
 
-    // Narratives
-    "narr.warmup.1": "{actor} takes {count} gift(s) from the pile 🎁",
-    "narr.warmup.2": "{actor} takes {count} gift(s) from the pile 🎁",
-    "narr.warmup.3": "{actor} picks a gift to give to {target} 🎁✨",
-    "narr.warmup.4": "{actor} steals a gift from {target} 🔫🎁",
-    "narr.warmup.5": "Everyone sends their smallest gift to the right 🎁🤏",
-    "narr.warmup.6": "Everyone sends their largest gift to the left 🫸 🎁 🫷",
+  // Seating
+  "seating.title": "Sit like this!",
+  "seating.subtitle":
+    "Find your seat. Clockwise around the table. Your left and right neighbours matter, gifts travel that way.",
+  "seating.shuffling": "Shuffling the seats…",
+  "seating.reshuffle": "Shuffle again",
+  "seating.edit": "Edit players",
+  "seating.start": "Start the chaos",
+  "seating.pickingStarter": "Who starts? The spotlight decides…",
+  "seating.starter": "{name} starts!",
+  "seating.neighbours": "left: {left} · right: {right}",
+  "seating.leftArrow": "your left",
+  "seating.top": "Top of the table",
+  "seating.listTitle": "Who sits next to whom",
 
-    "narr.endgame.1": "{actor} freezes any gift and keeps it permanently. 🥶🧊",
-    "narr.endgame.2": "{actor} swaps all unlocked gifts with {target}. 🔄🎁",
-    "narr.endgame.3": "{actor} trades unwanted gifts with {target}. ♻️🎁",
-    "narr.endgame.4": "{a} and {b} swap a gift each. 🎭🎁",
-    "narr.endgame.5": "{target} picks a gift from {actor}. 🎅🫳🎁",
-    "narr.endgame.6": "Gifts rotate {dir}! 🔄🎁",
+  // Top bar
+  "bar.pile": "Pile",
+  "bar.turn": "Turn",
+  "bar.rolls": "rolls left",
+  "bar.sound.on": "Sound on",
+  "bar.sound.off": "Sound off",
+  "bar.turbo": "Turbo",
+  "bar.rules": "Rules",
+  "bar.log": "Log",
+  "bar.reset": "New game",
+  "bar.resetConfirm": "End this game and start over?",
+  "bar.seats": "Seats",
+  "bar.debug": "Debug",
+  "bar.lang": "Svenska",
 
-    // Logs
-    "log.warmup.1": "{actor} takes {count} from the pile.",
-    "log.warmup.2": "{actor} takes {count} from the pile.",
-    "log.warmup.nothingToGive": "{actor} had nothing to give.",
-    "log.warmup.gave": "{actor} gives 1 gift to {target}.",
-    "log.warmup.noUnlockedSteal": "No unlocked gifts to steal.",
-    "log.warmup.steal": "{actor} steals 1 gift from {target}.",
-    "log.warmup.tiny":
-      "Tiny Toss Right: everyone sends their smallest gift right.",
-    "log.warmup.mega":
-      "Mega Move Left: everyone sends their largest gift left.",
+  // Phases
+  "phase.warmup": "Phase 1 · Warm-up",
+  "phase.endgame": "Phase 2 · Endgame",
+  "phase.ended": "Game over",
+  "phase.warmup.short": "Warm-up",
+  "phase.endgame.short": "Endgame",
 
-    "log.endgame.noFreeze": "{actor} has nothing to freeze.",
-    "log.endgame.freeze": "{actor} freezes a gift — it is now locked.",
-    "log.endgame.noSwap": "{actor} had no one to swap with.",
-    "log.endgame.flip": "{actor} swaps unlocked gifts with {target}.",
-    "log.endgame.trash.notEnough":
-      "Trash Trade failed — nobody else had unlocked gifts.",
-    "log.endgame.trash.failed":
-      "Trash Trade failed — selection could not be made.",
-    "log.endgame.trash.missing": "Trash Trade failed — missing unlocked gifts.",
-    "log.endgame.trash.swap":
-      "Trash Trade: {actor} swaps unlocked gifts with {target}.",
-    "log.endgame.joker.notEnough":
-      "Joker Swap failed — need two players with unlocked gifts.",
-    "log.endgame.joker.failed":
-      "Joker Swap failed — selection could not be made.",
-    "log.endgame.joker.missing": "Joker Swap failed — missing unlocked gifts.",
-    "log.endgame.joker.swap":
-      "Joker Swap: {a} and {b} each choose an unlocked gift from the other.",
-    "log.endgame.santa.none": "{actor} had nothing to hand over.",
-    "log.endgame.santa.gave":
-      "Santa's Hand: {target} chooses an unlocked gift from {actor}.",
-    "log.endgame.twist": "Twist of Fate: gifts rotate {dir}.",
-    "dir.left": "left",
-    "dir.right": "right",
-  },
-  sv: {
-    "ui.hero.title": "Christmas Chaos Game",
-    "ui.hero.eyebrow": "Julklappsleken fast kaos",
-    "ui.hero.subtitle": "Julklappsleken med kast där slumpen styr dramat!",
-    "ui.setup.title": "Spelare & Paket",
-    "ui.setup.hint": "",
-    "ui.setup.playerPlaceholder": "Spelare {num}",
-    "ui.setup.addPlayer": "+ Lägg till spelare",
-    "ui.setup.remove": "Ta bort",
-    "ui.setup.total": "Totalt antal paket",
-    "ui.setup.randomize": "Slumpa ordning & starta",
-    "ui.setup.randomizing": "Slumpar…",
-    "ui.order.heading": "Spelordning",
-    "ui.order.subtitle": "Vem får börja först? 🎲",
-    "ui.order.playerFallback": "Spelare {num}",
-    "ui.order.start": "Starta Christmas Chaos 🎲",
-    "ui.order.starting": "Packar in alla presenter.. 🎁",
-    "ui.banner.endgame": "Fas 2: Endgame — tre kast var!",
-    "ui.banner.body": "Håll hårt i paketen — kaoset blev just värre.",
-    "ui.banner.cta": "Kör!",
-    "ui.status.pile": "Högen",
-    "ui.status.current": "Nuvarande spelare",
-    "ui.status.rollsPlayer": "Kast kvar (spelare)",
-    "ui.status.rollsTotal": "Kast kvar (totalt)",
-    "ui.lastRoll": "Senaste kast",
-    "ui.lastRoll.empty": "Inga kast ännu.",
-    "ui.rules.warmup": "Fas 1 — Warm up",
-    "ui.rules.endgame": "Fas 2 — Endgame",
-    "ui.rules.lockedNote":
-      "Frusna paket stannar hos ägaren – de kan inte bytas, stjälas, ges bort eller roteras.",
-    "ui.phase.ended": "Spelet är slut",
-    "ui.reset": "Nollställ",
-    "ui.debug.on": "Debug på",
-    "ui.debug.off": "Debug av",
-    "ui.debug.togglePhase": "Byt fas (debug)",
-    "ui.roll.btn": "Slumpa",
-    "ui.roll.randomizing": "Slumpar…",
-    "ui.roll.finished": "Klart",
-    "ui.lang.en": "EN",
-    "ui.lang.sv": "SV",
-    "ui.randomizer.headingWarmup": "SLUMPAR SPELARE",
-    "ui.randomizer.headingEndgame": "SLUMPAR SPELARE",
-    "ui.randomizer.hint": "Välj slumpmässig handling",
-    "ui.randomizer.hintDebug": "Klicka på en action för att trigga (debug)",
-    "ui.players.title": "Spelare",
-    "ui.players.legend": "🎁 olåst · 🔒🎁 låst",
-    "ui.players.empty": "Inga paket",
-    "ui.log.title": "Actionlogg",
-    "ui.log.subtitle": "Senaste först",
-    "ui.log.empty": "Inga actions ännu.",
-    "ui.modal.giveVerb": "väljer ett av sina paket och ger till",
-    "ui.modal.stealVerb": "stjäl valfritt paket från",
-    "ui.modal.flipVerb": "byter alla paket med",
-    "ui.modal.trashVerb": "ska byta oönskade paket med",
-    "ui.modal.jokerPairVerb": "väljer två spelare som byter paket",
-    "ui.modal.santaVerb": "får välja ett valfritt paket från",
-    "ui.modal.twistVerb": "roterar alla paket åt",
-    "ui.modal.gameEnded.title": "Spelet är slut",
-    "ui.modal.gameEnded.line1":
-      "Nu är alla julklappar utdelade och spelet är slut. ",
-    "ui.modal.gameEnded.line2": "Hoppas du hade det roligt!",
-    "ui.modal.gameEnded.line3":
-      'Om du vill börja om spelet, välj "Nollställ" i menyn.',
-    "ui.modal.close": "Stäng",
-    "ui.narrative.placeholder": "Väntar på nästa händelse…",
+  // Stage
+  "stage.yourTurn": "{who} turn",
+  "stage.rollsLeft": "{count} rolls left",
+  "stage.rollsLeft.one": "Last roll!",
+  "stage.roll": "Roll, {name}!",
+  "stage.spinning": "Fate is deciding…",
+  "stage.targeting": "Who gets hit?",
+  "stage.targetingPair": "Which two?",
+  "stage.ended": "Game over",
+  "stage.calm": "Silent night",
+  "stage.waiting": "Hit the button. Feel the fear.",
+  "stage.lastAction": "What just happened",
+  "stage.doIt": "Do it at the table, then the next player rolls.",
+  "stage.next": "Next up: {name}",
 
-    // Actions
-    "actions.warmup.1.title": "Dubbelt Upp!",
-    "actions.warmup.1.desc": "Ta två valfria paket från högen 🎁🎁",
-    "actions.warmup.2.title": "Ta ett paket",
-    "actions.warmup.2.desc": "Ta ett valfritt paket från högen 🎁",
-    "actions.warmup.3.title": "Forced Tribute",
-    "actions.warmup.3.desc":
-      "Ge ett av dina paket till en slumpmässig spelare 🫴🎁",
-    "actions.warmup.4.title": "The Grinch Tax",
-    "actions.warmup.4.desc":
-      "Stjäl ett valfritt paket från en slumpmässig spelare 🔫🎁",
-    "actions.warmup.5.title": "Tiny Toss Right",
-    "actions.warmup.5.desc": "Skicka ditt minsta olåsta paket till höger 🎁🤏",
-    "actions.warmup.6.title": "Mega Move Left",
-    "actions.warmup.6.desc":
-      "Skicka ditt största olåsta paket till vänster 🫸🎁🫷",
+  "board.warmup": "Warm-up deck",
+  "board.endgame": "Endgame deck",
+  "board.unavailable": "Not possible right now",
+  "board.debugHint": "Debug: click a card to force it",
 
-    "actions.endgame.1.title": "Ice Lock",
-    "actions.endgame.1.desc": "Frys ett valfritt paket. 🥶🧊",
-    "actions.endgame.2.title": "Full Flip",
-    "actions.endgame.2.desc":
-      "Byt alla dina paket med en slumpmässig spelare. 🔄",
-    "actions.endgame.3.title": "Trash Trade",
-    "actions.endgame.3.desc": "Två spelare byter oönskade paket 🗑️",
-    "actions.endgame.4.title": "Joker Swap",
-    "actions.endgame.4.desc":
-      "Två spelare väljer varsitt valfritt paket från den andre och byter. 🎭",
-    "actions.endgame.5.title": "Santa's Hand",
-    "actions.endgame.5.desc": "Du måste ge bort ett valfritt paket 🎅🫳",
-    "actions.endgame.6.title": "Twist of Fate",
-    "actions.endgame.6.desc":
-      "Alla roterar sina paket ett steg vänster eller höger 🔮",
+  "table.pile": "in the pile",
+  "table.empty": "empty-handed",
+  "table.left": "LEFT",
+  "table.right": "RIGHT",
+  "table.clockwise": "clockwise",
+  "table.counter": "counter-clockwise",
 
-    // Narratives
-    "narr.warmup.1": "{actor} tar {count} paket från högen 🎁",
-    "narr.warmup.2": "{actor} tar {count} paket från högen 🎁",
-    "narr.warmup.3": "{actor} väljer ett paket att ge till {target} 🎁✨",
-    "narr.warmup.4": "{actor} stjäl ett valfritt paket från {target} 🔫🎁",
-    "narr.warmup.5": "Alla skickar sitt minsta paket till höger 🎁🤏",
-    "narr.warmup.6": "Alla skickar sitt största paket till vänster 🫸 🎁 🫷",
+  // Banner
+  "banner.endgame.kicker": "The pile is empty",
+  "banner.endgame.title": "ENDGAME",
+  "banner.endgame.body":
+    "Three rolls each. Gifts can be frozen, flipped, stolen and spun. Hold on to something.",
+  "banner.endgame.cta": "Bring it on",
 
-    "narr.endgame.1":
-      "{actor} fryser ett valfritt paket och behåller det permanent tills spelets slut. 🥶🧊",
-    "narr.endgame.2":
-      "{actor} byter alla paket med {target}. Frusna paket ligger kvar hos ägaren. 🔄",
-    "narr.endgame.3":
-      "{actor} & {target} väljer varsitt oönskat paket och byter med varandra. Har du inget paket så tar du utan att ge! ♻️",
-    "narr.endgame.4":
-      "{a} och {b} väljer ett varsitt paket från den andre och byter. Har du inget paket så tar du utan att ge! 🎭",
-    "narr.endgame.5":
-      "{actor} tvingas ge bort ett paket till {target} som får välja fritt! 🎅🫳",
-    "narr.endgame.6": "Alla byter paket! Rotera alla dina paket åt {dir}! 🔮",
+  // End
+  "end.kicker": "The dust settles…",
+  "end.title": "CHAOS OVER",
+  "end.body": "What you hold is what you get. Open your gifts!",
+  "end.award.most": "Gift hoarder",
+  "end.award.none": "Left in the cold",
+  "end.award.frozen": "Ice king",
+  "end.gifts": "{count} gifts",
+  "end.gift": "1 gift",
+  "end.again": "Play again, same crew",
+  "end.close": "Look at the table",
 
-    // Logs
-    "log.warmup.1": "{actor} tar {count} från högen.",
-    "log.warmup.2": "{actor} tar {count} från högen.",
-    "log.warmup.nothingToGive": "{actor} hade inget att ge.",
-    "log.warmup.gave": "{actor} ger 1 paket till {target}.",
-    "log.warmup.noUnlockedSteal": "Inga olåsta paket att stjäla.",
-    "log.warmup.steal": "{actor} stjäl 1 paket från {target}.",
-    "log.warmup.tiny":
-      "Tiny Toss Right: alla skickar sitt minsta paket åt höger.",
-    "log.warmup.mega":
-      "Mega Move Left: alla skickar sitt största paket åt vänster.",
+  // Rules
+  "rules.title": "How it works",
+  "rules.intro":
+    "Put all the gifts in a pile in the middle. Everyone gets the same number of rolls. The app picks the action and the victim, you do it for real at the table.",
+  "rules.warmup":
+    "Phase 1 · Warm-up: {rolls} rolls each. Grab from the pile, give, steal and pass. Keeps going until the pile is empty.",
+  "rules.endgame":
+    "Phase 2 · Endgame: {rolls} rolls each. Freeze gifts, flip hands, swap and spin the whole table.",
+  "rules.locked": "🧊 Frozen gifts are yours for good. Nobody can take, swap or rotate them.",
+  "rules.seats":
+    "↻ Left = clockwise, right = counter-clockwise. The seating chart shows who's who.",
+  "rules.close": "Got it",
 
-    "log.endgame.noFreeze": "{actor} har inget att frysa.",
-    "log.endgame.freeze": "{actor} fryser ett paket.",
-    "log.endgame.noSwap": "{actor} hade ingen att byta med.",
-    "log.endgame.flip": "{actor} byter olåsta paket med {target}.",
-    "log.endgame.trash.notEnough":
-      "Trash Trade misslyckades – ingen annan hade olåsta paket.",
-    "log.endgame.trash.failed":
-      "Trash Trade misslyckades – val kunde inte göras.",
-    "log.endgame.trash.missing":
-      "Trash Trade misslyckades – saknar olåsta paket.",
-    "log.endgame.trash.swap":
-      "Trash Trade: {actor} byter olåsta paket med {target}.",
-    "log.endgame.joker.notEnough":
-      "Joker Swap misslyckades – behöver två spelare med olåsta paket.",
-    "log.endgame.joker.failed":
-      "Joker Swap misslyckades – val kunde inte göras.",
-    "log.endgame.joker.missing":
-      "Joker Swap misslyckades – saknar olåsta paket.",
-    "log.endgame.joker.swap":
-      "Joker Swap: {a} och {b} väljer varsitt olåst paket från den andre.",
-    "log.endgame.santa.none": "{actor} hade inget att ge bort.",
-    "log.endgame.santa.gave":
-      "Santa’s Hand: {target} väljer ett olåst paket från {actor}.",
-    "log.endgame.twist": "Twist of Fate: paketen roterar {dir}.",
-    "dir.left": "vänster",
-    "dir.right": "höger",
-  },
+  // Log
+  "log.title": "Chaos log",
+  "log.empty": "Nothing has happened. Yet.",
+  "log.close": "Close",
+
+  // Actions (titles/descriptions)
+  "actions.warmup.1.title": "Double Grab",
+  "actions.warmup.1.desc": "Take two gifts of your choice from the pile.",
+  "actions.warmup.2.title": "Grab One",
+  "actions.warmup.2.desc": "Take one gift of your choice from the pile.",
+  "actions.warmup.3.title": "Forced Tribute",
+  "actions.warmup.3.desc": "Give one of your gifts to a random player.",
+  "actions.warmup.4.title": "The Grinch Tax",
+  "actions.warmup.4.desc": "Steal any gift from a random player.",
+  "actions.warmup.5.title": "Tiny Toss Right",
+  "actions.warmup.5.desc": "Everyone passes their smallest gift to the right.",
+  "actions.warmup.6.title": "Mega Move Left",
+  "actions.warmup.6.desc": "Everyone passes their biggest gift to the left.",
+
+  "actions.endgame.1.title": "Ice Lock",
+  "actions.endgame.1.desc": "Freeze one of your gifts. It's yours forever.",
+  "actions.endgame.2.title": "Full Flip",
+  "actions.endgame.2.desc": "Swap ALL your unfrozen gifts with a random player.",
+  "actions.endgame.3.title": "Trash Trade",
+  "actions.endgame.3.desc": "You and a random player swap one unwanted gift each.",
+  "actions.endgame.4.title": "Joker Swap",
+  "actions.endgame.4.desc": "Two random players pick one gift from each other and swap.",
+  "actions.endgame.5.title": "Santa's Hand",
+  "actions.endgame.5.desc": "Give away a gift. The receiver picks which one.",
+  "actions.endgame.6.title": "Twist of Fate",
+  "actions.endgame.6.desc": "Everyone passes ALL unfrozen gifts one seat left or right.",
+
+  // Narratives (instructions for the table)
+  "narr.warmup.1": "{actor} grabs {count} gifts from the pile. Greedy. We love it.",
+  "narr.warmup.2": "{actor} picks {count} gift from the pile.",
+  "narr.warmup.3": "{actor} must give a gift to {target}. Pick one. Smile.",
+  "narr.warmup.4": "{actor} steals any gift from {target}. No mercy.",
+  "narr.warmup.5": "Everyone: pass your SMALLEST gift to your RIGHT.",
+  "narr.warmup.6": "Everyone: pass your BIGGEST gift to your LEFT.",
+  "narr.endgame.1": "{actor} freezes a gift of choice. It can't be touched until the end.",
+  "narr.endgame.2": "{actor} and {target} swap ALL unfrozen gifts. Total flip!",
+  "narr.endgame.3": "{actor} and {target} swap one unwanted gift each. Empty-handed? Take without giving!",
+  "narr.endgame.4": "{a} and {b} pick one gift from each other and swap. Empty-handed? Take without giving!",
+  "narr.endgame.5": "{actor} must hand a gift to {target}, and {target} picks which one.",
+  "narr.endgame.6": "EVERYONE: pass all unfrozen gifts to the {dir}!",
+  "narr.calm": "Silent night. Nothing can happen for {actor} right now. Roll goes to waste.",
+
+  // Log lines
+  "log.warmup.1": "{actor} took {count} from the pile.",
+  "log.warmup.2": "{actor} took {count} from the pile.",
+  "log.warmup.3": "{actor} gave a gift to {target}.",
+  "log.warmup.4": "{actor} stole a gift from {target}.",
+  "log.warmup.5": "Everyone passed their smallest gift right.",
+  "log.warmup.6": "Everyone passed their biggest gift left.",
+  "log.endgame.1": "{actor} froze a gift.",
+  "log.endgame.2": "{actor} flipped hands with {target}.",
+  "log.endgame.3": "{actor} trash-traded with {target}.",
+  "log.endgame.4": "{a} and {b} joker-swapped.",
+  "log.endgame.5": "{actor} handed a gift to {target}.",
+  "log.endgame.6": "Twist of fate: everything went {dir}.",
+  "log.calm": "Nothing happened for {actor}.",
+  "log.endgameBegins": "Endgame begins. {rolls} rolls each!",
+  "log.extraRound": "Gifts left in the pile. One more round for everyone!",
+  "log.start": "{name} starts. Let the chaos begin.",
+
+  "dir.left": "left",
+  "dir.right": "right",
 };
+
+const sv: Dict = {
+  "brand.name": "Christmas Chaos",
+  "brand.tagline": "Julklappsleken. På steroider.",
+  "brand.pitch":
+    "Riktiga paket på bordet. Mobilen eller TV:n styr showen. Varje kast kan göra dig rik, pank eller frusen. Ingen är säker. Inte ens mormor.",
+
+  "setup.players.title": "Vilka är med?",
+  "setup.players.hint": "Skriv ett namn och tryck Enter. Klistra in en lista med kommatecken, det funkar.",
+  "setup.players.add": "Lägg till",
+  "setup.players.placeholder": "Namn…",
+  "setup.players.remove": "Ta bort {name}",
+  "setup.players.count": "{count} spelare",
+  "setup.pile.title": "Paket i högen",
+  "setup.pile.hint": "Tips: {suggested} paket ({per} per spelare).",
+  "setup.pile.auto": "Använd {suggested}",
+  "setup.cta.seat": "Slumpa platserna",
+  "setup.error.few": "Ni behöver minst två spelare. Kaos kräver offer.",
+  "setup.error.dupes": "Två spelare kan inte heta samma: {name}",
+  "setup.error.pile": "Högen behöver minst ett paket.",
+  "setup.step.players": "Spelare",
+  "setup.step.seats": "Platser",
+  "setup.step.play": "Kaos",
+
+  "seating.title": "Sätt er så här!",
+  "seating.subtitle":
+    "Hitta din plats. Medsols runt bordet. Grannarna till vänster och höger spelar roll, paketen vandrar åt de hållen.",
+  "seating.shuffling": "Slumpar platserna…",
+  "seating.reshuffle": "Slumpa om",
+  "seating.edit": "Ändra spelare",
+  "seating.start": "Starta kaoset",
+  "seating.pickingStarter": "Vem börjar? Strålkastaren bestämmer…",
+  "seating.starter": "{name} börjar!",
+  "seating.neighbours": "vänster: {left} · höger: {right}",
+  "seating.leftArrow": "din vänster",
+  "seating.top": "Bordets topp",
+  "seating.listTitle": "Vem sitter bredvid vem",
+
+  "bar.pile": "Högen",
+  "bar.turn": "Tur",
+  "bar.rolls": "kast kvar",
+  "bar.sound.on": "Ljud på",
+  "bar.sound.off": "Ljud av",
+  "bar.turbo": "Turbo",
+  "bar.rules": "Regler",
+  "bar.log": "Logg",
+  "bar.reset": "Nytt spel",
+  "bar.resetConfirm": "Avsluta spelet och börja om?",
+  "bar.seats": "Platser",
+  "bar.debug": "Debug",
+  "bar.lang": "English",
+
+  "phase.warmup": "Fas 1 · Uppvärmning",
+  "phase.endgame": "Fas 2 · Endgame",
+  "phase.ended": "Spelet är slut",
+  "phase.warmup.short": "Uppvärmning",
+  "phase.endgame.short": "Endgame",
+
+  "stage.yourTurn": "{who} tur",
+  "stage.rollsLeft": "{count} kast kvar",
+  "stage.rollsLeft.one": "Sista kastet!",
+  "stage.roll": "Kasta, {name}!",
+  "stage.spinning": "Ödet bestämmer…",
+  "stage.targeting": "Vem drabbas?",
+  "stage.targetingPair": "Vilka två?",
+  "stage.ended": "Spelet är slut",
+  "stage.calm": "Stilla natt",
+  "stage.waiting": "Tryck på knappen. Känn rädslan.",
+  "stage.lastAction": "Det här hände nyss",
+  "stage.doIt": "Gör det vid bordet, sen kastar nästa spelare.",
+  "stage.next": "Näst på tur: {name}",
+
+  "board.warmup": "Uppvärmningskort",
+  "board.endgame": "Endgame-kort",
+  "board.unavailable": "Går inte just nu",
+  "board.debugHint": "Debug: klicka på ett kort för att tvinga fram det",
+
+  "table.pile": "i högen",
+  "table.empty": "tomhänt",
+  "table.left": "VÄNSTER",
+  "table.right": "HÖGER",
+  "table.clockwise": "medsols",
+  "table.counter": "motsols",
+
+  "banner.endgame.kicker": "Högen är tom",
+  "banner.endgame.title": "ENDGAME",
+  "banner.endgame.body":
+    "Tre kast var. Paket kan frysas, bytas, stjälas och snurras. Håll i er.",
+  "banner.endgame.cta": "Kom igen då",
+
+  "end.kicker": "Dammet lägger sig…",
+  "end.title": "KAOSET ÄR ÖVER",
+  "end.body": "Det du håller i är ditt. Öppna paketen!",
+  "end.award.most": "Pakethamstraren",
+  "end.award.none": "Lämnad i kylan",
+  "end.award.frozen": "Iskungen",
+  "end.gifts": "{count} paket",
+  "end.gift": "1 paket",
+  "end.again": "Kör igen, samma gäng",
+  "end.close": "Kolla bordet",
+
+  "rules.title": "Så funkar det",
+  "rules.intro":
+    "Lägg alla paket i en hög i mitten. Alla får lika många kast. Appen väljer handling och offer, ni gör det på riktigt vid bordet.",
+  "rules.warmup":
+    "Fas 1 · Uppvärmning: {rolls} kast var. Ta från högen, ge, stjäl och skicka vidare. Fortsätter tills högen är tom.",
+  "rules.endgame":
+    "Fas 2 · Endgame: {rolls} kast var. Frys paket, byt allt, byt ett och snurra hela bordet.",
+  "rules.locked": "🧊 Frusna paket är dina för gott. Ingen kan ta, byta eller rotera dem.",
+  "rules.seats":
+    "↻ Vänster = medsols, höger = motsols. Platskartan visar vem som är vem.",
+  "rules.close": "Fattar",
+
+  "log.title": "Kaosloggen",
+  "log.empty": "Inget har hänt. Än.",
+  "log.close": "Stäng",
+
+  "actions.warmup.1.title": "Dubbelt upp!",
+  "actions.warmup.1.desc": "Ta två valfria paket från högen.",
+  "actions.warmup.2.title": "Ta ett paket",
+  "actions.warmup.2.desc": "Ta ett valfritt paket från högen.",
+  "actions.warmup.3.title": "Tvångsgåvan",
+  "actions.warmup.3.desc": "Ge ett av dina paket till en slumpad spelare.",
+  "actions.warmup.4.title": "Grinchskatten",
+  "actions.warmup.4.desc": "Stjäl ett valfritt paket från en slumpad spelare.",
+  "actions.warmup.5.title": "Lillkastet höger",
+  "actions.warmup.5.desc": "Alla skickar sitt minsta paket till höger.",
+  "actions.warmup.6.title": "Megaflytt vänster",
+  "actions.warmup.6.desc": "Alla skickar sitt största paket till vänster.",
+
+  "actions.endgame.1.title": "Isblock",
+  "actions.endgame.1.desc": "Frys ett av dina paket. Det är ditt för alltid.",
+  "actions.endgame.2.title": "Totalflippen",
+  "actions.endgame.2.desc": "Byt ALLA dina ofrusna paket med en slumpad spelare.",
+  "actions.endgame.3.title": "Skräpbytet",
+  "actions.endgame.3.desc": "Du och en slumpad spelare byter ett oönskat paket var.",
+  "actions.endgame.4.title": "Jokerbytet",
+  "actions.endgame.4.desc": "Två slumpade spelare tar ett paket från varandra och byter.",
+  "actions.endgame.5.title": "Tomtens hand",
+  "actions.endgame.5.desc": "Ge bort ett paket. Mottagaren väljer vilket.",
+  "actions.endgame.6.title": "Ödets virvel",
+  "actions.endgame.6.desc": "Alla skickar ALLA ofrusna paket ett steg vänster eller höger.",
+
+  "narr.warmup.1": "{actor} tar {count} paket från högen. Girigt. Vi gillar det.",
+  "narr.warmup.2": "{actor} väljer {count} paket från högen.",
+  "narr.warmup.3": "{actor} måste ge ett paket till {target}. Välj ett. Le.",
+  "narr.warmup.4": "{actor} stjäl valfritt paket från {target}. Ingen nåd.",
+  "narr.warmup.5": "Alla: skicka ert MINSTA paket till HÖGER.",
+  "narr.warmup.6": "Alla: skicka ert STÖRSTA paket till VÄNSTER.",
+  "narr.endgame.1": "{actor} fryser valfritt paket. Det får inte röras förrän spelet är slut.",
+  "narr.endgame.2": "{actor} och {target} byter ALLA ofrusna paket. Totalflipp!",
+  "narr.endgame.3": "{actor} och {target} byter ett oönskat paket var. Tomhänt? Ta utan att ge!",
+  "narr.endgame.4": "{a} och {b} tar ett paket från varandra och byter. Tomhänt? Ta utan att ge!",
+  "narr.endgame.5": "{actor} måste ge ett paket till {target}, och {target} väljer vilket.",
+  "narr.endgame.6": "ALLA: skicka alla ofrusna paket åt {dir}!",
+  "narr.calm": "Stilla natt. Inget kan hända för {actor} just nu. Kastet går förlorat.",
+
+  "log.warmup.1": "{actor} tog {count} från högen.",
+  "log.warmup.2": "{actor} tog {count} från högen.",
+  "log.warmup.3": "{actor} gav ett paket till {target}.",
+  "log.warmup.4": "{actor} stal ett paket från {target}.",
+  "log.warmup.5": "Alla skickade sitt minsta paket åt höger.",
+  "log.warmup.6": "Alla skickade sitt största paket åt vänster.",
+  "log.endgame.1": "{actor} frös ett paket.",
+  "log.endgame.2": "{actor} totalflippade med {target}.",
+  "log.endgame.3": "{actor} skräpbytte med {target}.",
+  "log.endgame.4": "{a} och {b} jokerbytte.",
+  "log.endgame.5": "{actor} gav ett paket till {target}.",
+  "log.endgame.6": "Ödets virvel: allt åkte åt {dir}.",
+  "log.calm": "Inget hände för {actor}.",
+  "log.endgameBegins": "Endgame börjar. {rolls} kast var!",
+  "log.extraRound": "Det finns paket kvar i högen. En runda till för alla!",
+  "log.start": "{name} börjar. Låt kaoset börja.",
+
+  "dir.left": "vänster",
+  "dir.right": "höger",
+};
+
+export const messages: Record<Lang, Dict> = { en, sv };
 
 export const detectBrowserLang = (): Lang => {
   if (typeof navigator === "undefined") return "en";
   const preferred =
-    (Array.isArray(navigator.languages)
-      ? navigator.languages[0]
-      : navigator.language) ?? "";
-  const lower = preferred.toLowerCase();
-  if (lower.startsWith("sv")) return "sv";
-  return "en";
+    (Array.isArray(navigator.languages) ? navigator.languages[0] : navigator.language) ?? "";
+  return preferred.toLowerCase().startsWith("sv") ? "sv" : "en";
 };
 
+/** Translate a key. A `dir` param ("left"/"right") is translated too. */
 export const tr = (
   lang: Lang,
   key: string,
   params?: Record<string, string | number>
-) => {
-  const fallback = messages.en[key];
-  const str = messages[lang]?.[key] ?? fallback ?? key;
+): string => {
+  const str = messages[lang]?.[key] ?? messages.en[key] ?? key;
   if (!params) return str;
-  return str.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? `{${k}}`));
+  return str.replace(/\{(\w+)\}/g, (_, k: string): string => {
+    const value = params[k];
+    if (value === undefined) return `{${k}}`;
+    if (k === "dir") return tr(lang, `dir.${value}`);
+    return String(value);
+  });
+};
+
+/** "Erik" -> "Erik's" / "Eriks", "Klaus" -> "Klaus'" / "Klaus". */
+export const possessive = (lang: Lang, name: string) => {
+  const endsWithS = /[sxz]$/i.test(name);
+  if (lang === "sv") return endsWithS ? name : `${name}s`;
+  return endsWithS ? `${name}'` : `${name}'s`;
 };

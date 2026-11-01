@@ -1,10 +1,11 @@
-import { GamePhase, Player } from "../types/game";
+import type { GamePhase, Player } from "../types/game";
 
-type ActionTable = Record<
+export type ActionTable = Record<
   number,
   {
     title: string;
     description: string;
+    emoji: string;
     requires?: (
       playerIndex: number,
       players: Player[],
@@ -20,22 +21,26 @@ export const warmupTable: ActionTable = {
   1: {
     title: "Double Grab",
     description: "Take two gifts from the pile.",
+    emoji: "🎁🎁",
     requires: (_playerIndex, _players, pile) => (pile ?? 0) >= 2,
   },
   2: {
     title: "Single Grab",
     description: "Take one gift from the pile.",
+    emoji: "🎁",
     requires: (_playerIndex, _players, pile) => (pile ?? 0) >= 1,
   },
   3: {
     title: "Forced Tribute",
     description: "Give one of your gifts to a random player.",
+    emoji: "🫴",
     requires: (playerIndex, players) =>
       players[playerIndex].packages.length > 0,
   },
   4: {
     title: "The Grinch Tax",
     description: "Steal one unlocked gift from a random player.",
+    emoji: "🥷",
     requires: (playerIndex, players) => {
       const otherPlayers = players.filter((_, idx) => idx !== playerIndex);
       return otherPlayers.some((player) =>
@@ -46,12 +51,14 @@ export const warmupTable: ActionTable = {
   5: {
     title: "Tiny Toss Right",
     description: "Send your smallest gift to the right.",
+    emoji: "🤏",
     requires: (_playerIndex, players) =>
       players.some((player) => player.packages.length > 0),
   },
   6: {
     title: "Mega Move Left",
     description: "Send your largest gift to the left.",
+    emoji: "💪",
     requires: (_playerIndex, players) =>
       players.some((player) => player.packages.length > 0),
   },
@@ -62,6 +69,7 @@ export const endgameTable: ActionTable = {
     title: "Ice Lock",
     description:
       "Freeze one of your gifts. Frozen gifts can’t be traded, stolen, given away, or rotated.",
+    emoji: "🧊",
     requires: (playerIndex, players) =>
       players[playerIndex].packages.some((pkg) => !pkg.locked),
   },
@@ -69,6 +77,7 @@ export const endgameTable: ActionTable = {
     title: "Full Flip",
     description:
       "Swap all unlocked gifts with a random player. Frozen gifts stay put.",
+    emoji: "🔄",
     requires: (playerIndex, players) =>
       players.some(
         (p, idx) => idx !== playerIndex && p.packages.some((pkg) => !pkg.locked)
@@ -78,6 +87,7 @@ export const endgameTable: ActionTable = {
     title: "Trash Trade",
     description:
       "Trade unlocked gifts with a random player. Frozen gifts never move.",
+    emoji: "🗑️",
     requires: (playerIndex, players) =>
       players[playerIndex].packages.some((pkg) => !pkg.locked) &&
       players.some(
@@ -88,12 +98,14 @@ export const endgameTable: ActionTable = {
     title: "Joker Swap",
     description:
       "Two random players each choose an unlocked gift from the other to swap.",
+    emoji: "🃏",
     requires: (_playerIndex, players) =>
       players.filter((p) => p.packages.some((pkg) => !pkg.locked)).length >= 2,
   },
   5: {
     title: "Santa's Hand",
     description: "Give away an unlocked gift picked by another random player.",
+    emoji: "🎅",
     requires: (playerIndex, players) =>
       players[playerIndex].packages.some((pkg) => !pkg.locked),
   },
@@ -101,6 +113,7 @@ export const endgameTable: ActionTable = {
     title: "Twist of Fate",
     description:
       "Everyone rotates unlocked gifts one step left or right at random.",
+    emoji: "🌪️",
     requires: (_playerIndex, players) =>
       players.some((player) => player.packages.some((pkg) => !pkg.locked)),
   },
