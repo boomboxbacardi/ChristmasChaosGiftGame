@@ -1,6 +1,6 @@
-import './App.css'
-import { GamePage } from './pages'
+import "./App.css";
+import { GamePage } from "./pages";
 
-const App = () => <GamePage />
+const App = () => <GamePage />;
 
-export default App
+export default App;

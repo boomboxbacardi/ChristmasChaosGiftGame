@@ -1,2 +1,2 @@
-export { GameTemplate } from "./GameTemplate";
-export { SetupTemplate } from "./SetupTemplate";
+export * from "./GameTemplate";
+export * from "./SetupTemplate";

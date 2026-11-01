@@ -1,3 +1,4 @@
-export { Pill } from "./Pill";
-export { SectionHeader } from "./SectionHeader";
-export { Stat } from "./Stat";
+export * from "./Avatar";
+export * from "./DieFace";
+export * from "./GiftPile";
+export * from "./Logo";
