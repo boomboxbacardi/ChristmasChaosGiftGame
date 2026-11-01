@@ -94,7 +94,10 @@ export const applyWarmupRoll = (
   }
 
   if (roll === 3) {
-    const targets = findPlayersWithGifts(updatedPlayers, actorIndex, true);
+    // Any other player can receive a tribute, even one with an empty hand.
+    const targets = updatedPlayers
+      .map((player, idx) => ({ player, idx }))
+      .filter(({ idx }) => idx !== actorIndex);
     if (!targets.length) {
       entries.push({
         id: uid(),
@@ -355,10 +358,21 @@ export const applyEndgameRoll = (
         }),
       });
     } else {
-      const actorSplit = splitLocked(actor);
-      const targetSplit = splitLocked(target.player);
-      actor.packages = [...actorSplit.locked, ...targetSplit.unlocked];
-      target.player.packages = [...targetSplit.locked, ...actorSplit.unlocked];
+      // One unwanted gift each, swapped one-for-one (matches the narrative).
+      const actorGift =
+        actorUnlocked[Math.floor(Math.random() * actorUnlocked.length)];
+      const targetGift =
+        targetUnlocked[Math.floor(Math.random() * targetUnlocked.length)];
+      actor.packages = [
+        ...actor.packages.filter((pkg) => pkg.id !== actorGift.id),
+        targetGift,
+      ];
+      target.player.packages = [
+        ...target.player.packages.filter(
+          (pkg: Player["packages"][number]) => pkg.id !== targetGift.id
+        ),
+        actorGift,
+      ];
       entries.push({
         id: uid(),
         message: t("log.endgame.trash.swap", {
