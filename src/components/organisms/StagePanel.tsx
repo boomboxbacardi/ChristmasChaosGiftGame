@@ -1,4 +1,5 @@
 import { getPhaseTable } from "../../constants/tables";
+import { wildcardById } from "../../game/wildcards";
 import type { ChaosGame } from "../../hooks/useChaosGame";
 import { Avatar } from "../atoms";
 
@@ -14,6 +15,8 @@ export const StagePanel = ({ game }: Props) => {
   const buttonLabel =
     stage === "spinning"
       ? t("stage.spinning")
+      : stage === "wild"
+        ? `⭐ ${t("stage.wild")}`
       : stage === "targeting"
         ? t(game.targetKind === "pair" ? "stage.targetingPair" : "stage.targeting")
         : phase === "ended"
@@ -27,10 +30,20 @@ export const StagePanel = ({ game }: Props) => {
           <span className="stage__kicker">{t("stage.lastAction")}</span>
           <div className="stage__result-head">
             <span className="stage__emoji" aria-hidden="true">
-              {resultInfo?.emoji ?? "🌙"}
+              {result.special === "miracle"
+                ? "🌟"
+                : result.wild
+                  ? (wildcardById(result.wild)?.emoji ?? "⭐")
+                  : (resultInfo?.emoji ?? "🌙")}
             </span>
             <h2 className="stage__title">
-              {resultInfo ? t(`actions.${resultPrefix}.${result.roll}.title`) : t("stage.calm")}
+              {result.special === "miracle"
+                ? t("stage.miracle")
+                : result.wild
+                  ? t(`wild.${result.wild}.title`)
+                  : resultInfo
+                  ? t(`actions.${resultPrefix}.${result.roll}.title`)
+                  : t("stage.calm")}
             </h2>
           </div>
           <p className="stage__narrative">{tm(result.narrative)}</p>

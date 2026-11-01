@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { type ActionTargets, applyRoll } from "../game/actions";
+import { type ActionTargets, WILD_ROLL, christmasMiracle } from "../game/actions";
+import { type WildId, possibleWildcards } from "../game/wildcards";
+import {
+  type GameState,
+  availableRolls,
+  pickRoll,
+  pickWild,
+  pickTargets,
+  resolveTurn,
+  targetOptions,
+} from "../game/rules";
 import { defaultPlayerNames, uid } from "../game/engine";
 import { shuffle, shuffleSeats } from "../game/seating";
 import { type Lang, detectBrowserLang, possessive, tr } from "../constants/messages";
@@ -7,11 +17,10 @@ import {
   ENDGAME_ROLLS,
   PACKAGES_PER_PLAYER,
   WARMUP_ROLLS,
-  getPhaseTable,
 } from "../constants/tables";
 import type { ActionResult, GamePhase, LogEntry, Message, Player } from "../types/game";
 import { emitFx } from "../utils/fx";
-import { giftCounts, pickWeighted } from "../utils/players";
+import { giftCounts } from "../utils/players";
 import { brakingDurations, buildSpinPath, runPath, wait } from "../utils/sequence";
 import { readJson, removeKey, writeJson } from "../utils/storage";
 import { useSound } from "./useSound";
@@ -22,7 +31,7 @@ const MAX_NAME = 24;
 const MAX_PLAYERS = 24;
 
 export type SetupStep = "players" | "seating";
-export type Stage = "idle" | "spinning" | "targeting" | "result";
+export type Stage = "idle" | "spinning" | "wild" | "targeting" | "result";
 
 type SavedGame = {
   phase: GamePhase;
@@ -46,48 +55,6 @@ const suggestedPile = (count: number) => Math.max(1, count * PACKAGES_PER_PLAYER
 
 const cleanNames = (names: string[]) =>
   names.map((n) => n.trim().slice(0, MAX_NAME)).filter(Boolean);
-
-/** Roll weights: keep "Double Grab" rarer, and favour Twist of Fate for empty hands. */
-const rollWeight = (phase: GamePhase, roll: number, actor: Player, pile: number) => {
-  if (phase === "warmup" && roll === 1) return pile >= 2 ? 1 : 0;
-  if (phase === "warmup" && roll === 2) return 2;
-  if (phase === "endgame" && roll === 6) return actor.packages.length ? 1 : 3;
-  return 1;
-};
-
-const hasUnlocked = (p: Player) => p.packages.some((pkg) => !pkg.locked);
-const unlockedCount = (p: Player) => p.packages.filter((pkg) => !pkg.locked).length;
-
-/** Who can be hit by a roll, as seat sets with weights. */
-const targetOptions = (phase: GamePhase, roll: number, players: Player[], actor: number) => {
-  const others = players.map((p, idx) => ({ p, idx })).filter(({ idx }) => idx !== actor);
-  const single = (list: { p: Player; idx: number }[], weight: (p: Player) => number) => ({
-    kind: "single" as const,
-    options: list.map(({ idx }) => [idx]),
-    weights: list.map(({ p }) => weight(p)),
-  });
-  if (phase === "warmup") {
-    if (roll === 3) return single(others, (p) => p.packages.length + 1);
-    if (roll === 4) return single(others.filter(({ p }) => hasUnlocked(p)), (p) => p.packages.length + 1);
-    return null;
-  }
-  if (roll === 2) return single(others.filter(({ p }) => hasUnlocked(p)), () => 1);
-  if (roll === 3) return single(others, (p) => unlockedCount(p) + 1);
-  if (roll === 5) return single(others, () => 1);
-  if (roll === 4) {
-    const options: number[][] = [];
-    const weights: number[] = [];
-    for (let a = 0; a < players.length; a += 1) {
-      for (let b = a + 1; b < players.length; b += 1) {
-        if (!hasUnlocked(players[a]) && !hasUnlocked(players[b])) continue;
-        options.push([a, b]);
-        weights.push((players[a].packages.length + 1) * (players[b].packages.length + 1));
-      }
-    }
-    return { kind: "pair" as const, options, weights };
-  }
-  return null;
-};
 
 const fxSound = {
   grab: "land",
@@ -147,6 +114,7 @@ export const useChaosGame = () => {
   const [isFinal, setIsFinal] = useState(Boolean(saved?.result));
   const [targetSeats, setTargetSeats] = useState<number[]>([]);
   const [targetKind, setTargetKind] = useState<"single" | "pair">("single");
+  const [wildShown, setWildShown] = useState<WildId | null>(null);
   const busyRef = useRef(false);
   const tokenRef = useRef(0);
 
@@ -334,16 +302,17 @@ export const useChaosGame = () => {
     rollPhase: GamePhase,
     roll: number,
     actor: number,
-    isCancelled: () => boolean
+    isCancelled: () => boolean,
+    wild?: WildId
   ): Promise<ActionTargets | null> => {
-    const spec = targetOptions(rollPhase, roll, players, actor);
-    if (!spec || !spec.options.length) return {};
-    const finalIdx = pickWeighted(spec.weights);
+    const spec = targetOptions(rollPhase, roll, players, actor, wild);
+    const { targets, index } = pickTargets(spec);
+    if (!spec || index < 0) return targets;
     setTargetKind(spec.kind);
     setStage("targeting");
     if (spec.options.length > 1) {
       const indices = spec.options.map((_, i) => i);
-      const path = buildSpinPath(indices, finalIdx, Math.max(16, Math.min(40, indices.length * 4)));
+      const path = buildSpinPath(indices, index, Math.max(16, Math.min(40, indices.length * 4)));
       const ok = await runPath(
         path,
         brakingDurations(path.length, 2600 * speed),
@@ -355,12 +324,46 @@ export const useChaosGame = () => {
       );
       if (!ok) return null;
     }
-    setTargetSeats(spec.options[finalIdx]);
+    setTargetSeats(spec.options[index]);
     play("land");
     await wait(650 * speed);
     if (isCancelled()) return null;
-    const picked = spec.options[finalIdx];
-    return spec.kind === "pair" ? { pair: [picked[0], picked[1]] } : { target: picked[0] };
+    return targets;
+  };
+
+  const toEntries = (messages: Message[], entryPhase: GamePhase): LogEntry[] =>
+    messages.map((m) => ({ ...m, id: uid(), phase: entryPhase }));
+
+  /** Nobody goes home empty-handed: the richest hand out to the empty ones. */
+  const runMiracle = async (roster: Player[], isCancelled: () => boolean) => {
+    const { players: blessed, transfers } = christmasMiracle(roster);
+    if (!transfers.length) return true;
+    await wait(2600 * speed);
+    if (isCancelled()) return false;
+    const before = giftCounts(roster);
+    const after = giftCounts(blessed);
+    const deltas: Record<string, number> = {};
+    for (const id of Object.keys(after)) {
+      if (after[id] !== before[id]) deltas[id] = after[id] - (before[id] ?? 0);
+    }
+    const list = transfers.map((tr) => `${roster[tr.from].name} → ${roster[tr.to].name}`).join(", ");
+    setPlayers(blessed);
+    setLog((prev) => [...toEntries([{ key: "log.miracle", params: { list } }], "ended"), ...prev]);
+    setResult({
+      roll: 0,
+      special: "miracle",
+      phase: "ended",
+      narrative: { key: "narr.miracle", params: { list } },
+      fx: "give",
+      seats: [...new Set(transfers.flatMap((tr) => [tr.from, tr.to]))],
+      links: transfers.map((tr) => ({ from: tr.from, to: tr.to, kind: "give" as const })),
+      deltas,
+      key: Date.now(),
+    });
+    emitFx({ kind: "start" });
+    play("freeze");
+    await wait(4200 * speed);
+    return !isCancelled();
   };
 
   const roll = async (forced?: number) => {
@@ -375,26 +378,21 @@ export const useChaosGame = () => {
     const token = ++tokenRef.current;
     const isCancelled = () => tokenRef.current !== token;
     const rollPhase = phase;
+    const state: GameState = { phase, players, pile, current, rolls, warmupTaken };
 
     setResult(null);
     setTargetSeats([]);
     setIsFinal(false);
+    setWildShown(null);
 
-    const table = getPhaseTable(rollPhase);
-    const available = Object.keys(table)
-      .map(Number)
-      .filter((r) => {
-        const req = table[r].requires;
-        return (!req || req(current, players, pile)) && rollWeight(rollPhase, r, actor, pile) > 0;
-      });
-
+    const available = availableRolls(state);
     let chosen = 0;
     if (isForced) {
       chosen = forced;
       setHighlightedRoll(chosen);
       setIsFinal(true);
     } else if (available.length) {
-      chosen = available[pickWeighted(available.map((r) => rollWeight(rollPhase, r, actor, pile)))];
+      chosen = pickRoll(state, available);
       setStage("spinning");
       const path = buildSpinPath(available, chosen, Math.max(14, available.length * 4));
       const ok = await runPath(
@@ -415,73 +413,45 @@ export const useChaosGame = () => {
       setHighlightedRoll(null);
     }
 
-    const targets = chosen ? await rollTargets(rollPhase, chosen, current, isCancelled) : {};
+    // The wildcard spins a second wheel of nonsense.
+    let wild: WildId | undefined;
+    if (chosen === WILD_ROLL) {
+      wild = pickWild(rollPhase, players, current);
+      const pool = possibleWildcards(rollPhase, players, current).map((w) => w.id);
+      if (wild && pool.length > 1) {
+        setStage("wild");
+        const indices = pool.map((_, i) => i);
+        const path = buildSpinPath(indices, pool.indexOf(wild), Math.max(14, pool.length * 3));
+        const ok = await runPath(
+          path,
+          brakingDurations(path.length, 2400 * speed),
+          (i) => {
+            setWildShown(pool[i]);
+            play("tick");
+          },
+          isCancelled
+        );
+        if (!ok) return;
+      }
+      setWildShown(wild ?? null);
+      play("boom");
+      await wait(800 * speed);
+      if (isCancelled()) return;
+    }
+
+    const targets = chosen ? await rollTargets(rollPhase, chosen, current, isCancelled, wild) : {};
     if (targets === null) return;
 
-    const outcome = applyRoll(rollPhase, chosen, players, pile, current, targets);
+    const turn = resolveTurn(state, chosen, { ...targets, wild }, { free: isForced });
+    const { outcome } = turn;
+    const nextPhase = turn.state.phase;
 
-    const before = giftCounts(players);
-    const after = giftCounts(outcome.players);
-    const deltas: Record<string, number> = {};
-    for (const id of Object.keys(after)) {
-      const diff = after[id] - (before[id] ?? 0);
-      if (diff) deltas[id] = diff;
-    }
-
-    const nextRolls = { ...rolls };
-    const nextTaken = { ...warmupTaken };
-    if (!isForced) {
-      nextRolls[actor.id] = Math.max(0, (nextRolls[actor.id] ?? 0) - 1);
-      if (rollPhase === "warmup") nextTaken[actor.id] = (nextTaken[actor.id] ?? 0) + 1;
-    }
-
-    let nextPhase: GamePhase = rollPhase;
-    let finalRolls = nextRolls;
-    const extraLog: Message[] = [];
-    const remaining = Object.values(nextRolls).reduce((sum, v) => sum + v, 0);
-
-    if (rollPhase === "warmup") {
-      const everyoneDone = outcome.players.every((p) => (nextTaken[p.id] ?? 0) >= WARMUP_ROLLS);
-      if (outcome.pile <= 0 && everyoneDone) {
-        nextPhase = "endgame";
-        finalRolls = Object.fromEntries(outcome.players.map((p) => [p.id, ENDGAME_ROLLS]));
-        extraLog.push({ key: "log.endgameBegins", params: { rolls: ENDGAME_ROLLS } });
-      } else if (remaining === 0) {
-        if (outcome.pile > 0) {
-          finalRolls = Object.fromEntries(outcome.players.map((p) => [p.id, 1]));
-          extraLog.push({ key: "log.extraRound" });
-        } else {
-          finalRolls = Object.fromEntries(
-            outcome.players.map((p) => [p.id, Math.max(0, WARMUP_ROLLS - (nextTaken[p.id] ?? 0))])
-          );
-        }
-      }
-    } else if (remaining === 0) {
-      nextPhase = "ended";
-    }
-
-    let nextIdx = current;
-    if (nextPhase !== "ended") {
-      for (let i = 1; i <= outcome.players.length; i += 1) {
-        const idx = (current + i) % outcome.players.length;
-        if ((finalRolls[outcome.players[idx].id] ?? 0) > 0) {
-          nextIdx = idx;
-          break;
-        }
-      }
-    }
-
-    const newEntries: LogEntry[] = [
-      ...extraLog.map((m) => ({ ...m, id: uid(), phase: nextPhase })),
-      ...outcome.log.map((m) => ({ ...m, id: uid(), phase: rollPhase })),
-    ];
-
-    setPlayers(outcome.players);
-    setPile(outcome.pile);
-    setRolls(finalRolls);
-    setWarmupTaken(nextTaken);
-    setLog((prev) => [...newEntries, ...prev].slice(0, 120));
-    setCurrent(nextIdx);
+    setPlayers(turn.state.players);
+    setPile(turn.state.pile);
+    setRolls(turn.state.rolls);
+    setWarmupTaken(turn.state.warmupTaken);
+    setLog((prev) => [...toEntries(turn.log, rollPhase), ...prev].slice(0, 150));
+    setCurrent(turn.state.current);
     setTargetSeats([]);
     setResult({
       roll: chosen,
@@ -489,15 +459,18 @@ export const useChaosGame = () => {
       narrative: outcome.narrative,
       fx: outcome.fx,
       seats: outcome.seats,
+      links: outcome.links,
       direction: outcome.direction,
-      deltas,
+      steps: outcome.steps,
+      wild,
+      deltas: turn.deltas,
       key: Date.now(),
     });
     setStage("result");
     emitFx({ kind: outcome.fx });
     play(fxSound[outcome.fx]);
 
-    if (nextPhase !== rollPhase) {
+    if (turn.phaseChanged) {
       setPhase(nextPhase);
       if (nextPhase === "endgame") {
         setHighlightedRoll(null);
@@ -508,6 +481,7 @@ export const useChaosGame = () => {
         emitFx({ kind: "endgame" });
         play("boom");
       } else if (nextPhase === "ended") {
+        if (!(await runMiracle(turn.state.players, isCancelled))) return;
         await wait(1800 * speed);
         if (isCancelled()) return;
         setShowEnd(true);
@@ -568,7 +542,7 @@ export const useChaosGame = () => {
 
   const currentPlayer = players[current] ?? null;
   const currentRolls = currentPlayer ? (rolls[currentPlayer.id] ?? 0) : 0;
-  const isBusy = stage === "spinning" || stage === "targeting";
+  const isBusy = stage === "spinning" || stage === "wild" || stage === "targeting";
   const canRoll =
     (phase === "warmup" || phase === "endgame") &&
     !isBusy &&
@@ -631,6 +605,7 @@ export const useChaosGame = () => {
     isFinal,
     targetSeats,
     targetKind,
+    wildShown,
     canRoll,
     isBusy,
     roll,

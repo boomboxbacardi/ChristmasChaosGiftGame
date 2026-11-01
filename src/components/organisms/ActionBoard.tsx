@@ -1,5 +1,7 @@
 import type { ActionTable } from "../../constants/tables";
 import type { GamePhase, Player } from "../../types/game";
+import { WILD_ROLL } from "../../game/actions";
+import { wildcardById } from "../../game/wildcards";
 import { ActionCard } from "../molecules";
 
 type Props = {
@@ -12,6 +14,7 @@ type Props = {
   highlightedRoll: number | null;
   isFinal: boolean;
   isSpinning: boolean;
+  wildShown?: string | null;
   t: (key: string) => string;
   onForce?: (roll: number) => void;
 };
@@ -26,6 +29,7 @@ export const ActionBoard = ({
   highlightedRoll,
   isFinal,
   isSpinning,
+  wildShown,
   t,
   onForce,
 }: Props) => {
@@ -42,6 +46,7 @@ export const ActionBoard = ({
           const isAvailable =
             players.length > 0 && (!info.requires || info.requires(current, players, pile));
           const isLit = highlightedRoll === roll;
+          const wild = roll === WILD_ROLL && isLit && wildShown ? wildcardById(wildShown) : undefined;
           const state = isLit
             ? isFinal
               ? "final"
@@ -53,8 +58,9 @@ export const ActionBoard = ({
             <ActionCard
               key={roll}
               roll={roll}
-              emoji={info.emoji}
-              title={t(`actions.${prefix}.${roll}.title`)}
+              emoji={wild?.emoji ?? info.emoji}
+              title={wild ? `⭐ ${t(`wild.${wild.id}.title`)}` : t(`actions.${prefix}.${roll}.title`)}
+              isWild={roll === WILD_ROLL}
               description={t(`actions.${prefix}.${roll}.desc`)}
               state={state}
               isAvailable={isAvailable}

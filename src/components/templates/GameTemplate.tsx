@@ -19,10 +19,7 @@ export const GameTemplate = ({ game }: Props) => {
     delta: showResult ? result.deltas[p.id] : undefined,
   }));
 
-  const link =
-    showResult && result.seats.length === 2 && ["give", "steal", "swap"].includes(result.fx)
-      ? { from: result.seats[0], to: result.seats[1], kind: result.fx, key: result.key }
-      : undefined;
+  const links = showResult ? (result.links ?? []) : [];
 
   const rotation =
     showResult && result.fx === "rotate" && result.direction
@@ -31,6 +28,7 @@ export const GameTemplate = ({ game }: Props) => {
           label: `${result.direction === "left" ? "↻" : "↺"} ${t(
             result.direction === "left" ? "table.left" : "table.right"
           )}`,
+          sub: result.steps ? t("table.steps", { steps: result.steps }) : undefined,
           key: result.key,
         }
       : undefined;
@@ -41,7 +39,8 @@ export const GameTemplate = ({ game }: Props) => {
         <RoundTable
           seats={seats}
           emptyLabel={t("table.empty")}
-          link={link}
+          links={links}
+          linkKey={result?.key}
           rotation={rotation}
           deltaKey={result?.key}
           center={
@@ -78,7 +77,8 @@ export const GameTemplate = ({ game }: Props) => {
           pile={game.pile}
           highlightedRoll={game.highlightedRoll}
           isFinal={game.isFinal}
-          isSpinning={game.stage === "spinning"}
+          isSpinning={game.stage === "spinning" || game.stage === "wild"}
+          wildShown={game.wildShown}
           t={t}
           onForce={game.debug && phase !== "ended" ? (roll) => void game.roll(roll) : undefined}
         />

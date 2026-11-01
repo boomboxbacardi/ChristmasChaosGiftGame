@@ -7,6 +7,7 @@ type Props = {
   description: string;
   state: "idle" | "lit" | "final" | "faded";
   isAvailable: boolean;
+  isWild?: boolean;
   unavailableLabel: string;
   onClick?: () => void;
 };
@@ -18,10 +19,11 @@ export const ActionCard = ({
   description,
   state,
   isAvailable,
+  isWild,
   unavailableLabel,
   onClick,
 }: Props) => {
-  const className = `action-card action-card--${state} ${isAvailable ? "" : "action-card--off"} ${
+  const className = `action-card action-card--${state} ${isWild ? "action-card--wild" : ""} ${isAvailable ? "" : "action-card--off"} ${
     onClick ? "action-card--clickable" : ""
   }`;
   const content = (

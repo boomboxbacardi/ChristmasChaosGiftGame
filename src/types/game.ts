@@ -43,7 +43,11 @@ export type ActionResult = {
   fx: FxKind;
   /** Seats involved in the action (actor first). */
   seats: number[];
+  links?: { from: number; to: number; kind: "give" | "steal" | "swap" }[];
   direction?: Direction;
+  steps?: number;
+  special?: "miracle";
+  wild?: string;
   /** Package count change per player id. */
   deltas: Record<string, number>;
   key: number;
