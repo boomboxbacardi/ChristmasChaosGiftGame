@@ -16,9 +16,10 @@ type Props = {
   center?: ReactNode;
   emptyLabel?: string;
   showGifts?: boolean;
-  /** Draw an arrow between seats (actor first). */
-  link?: { from: number; to: number; kind: FxKind; key: number };
-  rotation?: { direction: Direction; label: string; key: number };
+  /** Arrows between seats. */
+  links?: { from: number; to: number; kind: FxKind }[];
+  linkKey?: number;
+  rotation?: { direction: Direction; label: string; sub?: string; key: number };
   isShuffling?: boolean;
   deltaKey?: number;
 };
@@ -39,7 +40,8 @@ export const RoundTable = ({
   center,
   emptyLabel,
   showGifts = true,
-  link,
+  links = [],
+  linkKey,
   rotation,
   isShuffling,
   deltaKey,
@@ -84,28 +86,36 @@ export const RoundTable = ({
           {rotation ? (
             <span key={rotation.key} className="round-table__dir">
               {rotation.label}
+              {rotation.sub && <small>{rotation.sub}</small>}
             </span>
           ) : (
             center
           )}
         </div>
       </div>
-      {link && count > 1 && (
-        <svg key={link.key} className={`round-table__link round-table__link--${link.kind}`} viewBox="0 0 100 100" aria-hidden="true">
+      {links.length > 0 && count > 1 && (
+        <svg key={linkKey} className="round-table__links" viewBox="0 0 100 100" aria-hidden="true">
           <defs>
-            <marker id="link-head" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-              <path d="M0,0 L10,5 L0,10 z" fill="currentColor" />
-            </marker>
+            {(["give", "steal", "swap"] as const).map((kind) => (
+              <marker key={kind} id={`link-head-${kind}`} className={`round-table__head--${kind}`} viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="currentColor" />
+              </marker>
+            ))}
           </defs>
-          <path
-            d={link.kind === "steal" ? linkPath(link.to, link.from, count) : linkPath(link.from, link.to, count)}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            markerEnd="url(#link-head)"
-            markerStart={link.kind === "swap" ? "url(#link-head)" : undefined}
-          />
+          {links.map((link, i) => (
+            <path
+              key={`${link.from}-${link.to}-${i}`}
+              className={`round-table__link round-table__link--${link.kind}`}
+              style={{ animationDelay: `${i * 0.35}s` }}
+              d={link.kind === "steal" ? linkPath(link.to, link.from, count) : linkPath(link.from, link.to, count)}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              markerEnd={`url(#link-head-${link.kind})`}
+              markerStart={link.kind === "swap" ? `url(#link-head-${link.kind})` : undefined}
+            />
+          ))}
         </svg>
       )}
       {seats.map(({ key, ...seat }, idx) => {

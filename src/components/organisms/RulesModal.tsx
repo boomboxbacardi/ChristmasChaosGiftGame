@@ -46,6 +46,7 @@ export const RulesModal = ({ isOpen, onClose, t }: Props) => (
         ))}
       </div>
       <p className="sheet__note">{t("rules.locked")}</p>
+      <p className="sheet__note">{t("rules.miracle")}</p>
       <button type="button" className="btn btn--candy" onClick={onClose}>
         {t("rules.close")}
       </button>

@@ -786,7 +786,7 @@ body[data-phase="endgame"] .round-table__felt {
   to { transform: scale(1); opacity: 1; }
 }
 
-.round-table__link {
+.round-table__links {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -795,15 +795,23 @@ body[data-phase="endgame"] .round-table__felt {
   pointer-events: none;
   overflow: visible;
 }
-.round-table__link path {
+.round-table__link {
   stroke-dasharray: 200;
   stroke-dashoffset: 200;
   animation: draw 0.9s ease-out forwards;
   filter: drop-shadow(0 0 4px currentColor);
 }
-.round-table__link--give { color: var(--mint); }
-.round-table__link--steal { color: var(--red); }
-.round-table__link--swap { color: var(--gold); }
+.round-table__link--give,
+.round-table__head--give { color: var(--mint); }
+.round-table__link--steal,
+.round-table__head--steal { color: var(--red); }
+.round-table__link--swap,
+.round-table__head--swap { color: var(--gold); }
+.round-table__dir small {
+  display: block;
+  font-size: 0.55em;
+  color: var(--ink);
+}
 @keyframes draw {
   to { stroke-dashoffset: 0; }
 }
@@ -1539,4 +1547,45 @@ button.action-card {
 }
 .overlay__panel--takeover .takeover__title {
   font-size: clamp(48px, 11vw, 120px);
+}
+
+/* ============ Wildcard ============ */
+.action-card--wild {
+  grid-column: 1 / -1;
+  border-color: transparent;
+  background:
+    linear-gradient(var(--panel-strong), var(--panel-strong)) padding-box,
+    linear-gradient(90deg, var(--pink), var(--gold), var(--mint), var(--ice), var(--pink)) border-box;
+  background-size: 100% 100%, 300% 100%;
+  animation: rainbow 4s linear infinite;
+}
+.action-card--wild .action-card__text strong {
+  font-size: 18px;
+  background: linear-gradient(90deg, var(--gold), var(--pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.action-card--wild.action-card--lit,
+.action-card--wild.action-card--final {
+  background:
+    linear-gradient(135deg, #8a2be2, var(--pink)) padding-box,
+    linear-gradient(90deg, var(--gold), var(--mint), var(--ice), var(--pink), var(--gold)) border-box;
+  background-size: 100% 100%, 300% 100%;
+  color: #fff;
+}
+.action-card--wild.action-card--lit .action-card__text strong,
+.action-card--wild.action-card--final .action-card__text strong {
+  color: #fff;
+  background: none;
+}
+.action-card--wild.action-card--lit .action-card__text span {
+  color: rgba(255, 255, 255, 0.85);
+}
+.stage--wild {
+  animation: stage-buzz 0.12s linear infinite;
+}
+.stage--wild .mega-btn--busy:disabled {
+  --stripe-a: var(--pink);
+  --stripe-b: #8a2be2;
 }

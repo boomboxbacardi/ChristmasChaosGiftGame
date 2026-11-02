@@ -9,6 +9,16 @@ export const rightOf = (idx: number, count: number) => (idx - 1 + count) % count
 export const neighbourOf = (idx: number, count: number, dir: Direction) =>
   dir === "left" ? leftOf(idx, count) : rightOf(idx, count);
 
+/** Walk `steps` seats in a direction. */
+export const seatAt = (idx: number, count: number, dir: Direction, steps = 1) =>
+  dir === "left"
+    ? (idx + steps) % count
+    : (((idx - steps) % count) + count) % count;
+
+/** The seat straight across the table. */
+export const oppositeOf = (idx: number, count: number) =>
+  (idx + Math.floor(count / 2)) % count;
+
 export const shuffle = <T>(items: T[]): T[] => {
   const next = [...items];
   for (let i = next.length - 1; i > 0; i -= 1) {

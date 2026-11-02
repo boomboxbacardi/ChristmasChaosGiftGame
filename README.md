@@ -25,7 +25,10 @@ You know the classic dice gift game. Pile of presents in the middle, everybody r
 - 🔦 **A spotlight picks the victim.** Watch the table light up while it decides who you rob.
 - 🧊 **Freeze your favourite gift** before someone flips your whole hand.
 - 🔥 **Two phases:** a greedy warm-up, then an ENDGAME where the table literally catches fire.
-- 🏆 **Final standings and awards:** Gift Hoarder, Ice King and the one Left in the Cold.
+- ⭐ **Wildcards** with eight unhinged events: musical chairs, blizzards, blindfold heists, hot potatoes…
+- ↔️ **Chaos across the table**, not just next door: gifts jump to the person opposite, relay through three players, and travel up to three seats.
+- ⚖️ **Balanced for real parties.** Rich players get robbed more, gifts drift towards empty hands, and a Christmas Miracle makes sure nobody leaves with nothing.
+- 🏆 **Final standings and awards:** Gift Hoarder and Ice King.
 
 ## Sit like this
 
@@ -45,7 +48,7 @@ Seats go **clockwise**. Facing the middle of the table, the person clockwise fro
 
 ![Warm-up in action](docs/warmup.jpg)
 
-### Phase 1 · Warm-up (3 rolls each, keeps going until the pile is empty)
+### Phase 1 · Warm-up (at least 3 rolls each, extra rounds until the pile is empty)
 
 | | Action | What happens |
 |---|---|---|
@@ -53,8 +56,10 @@ Seats go **clockwise**. Facing the middle of the table, the person clockwise fro
 | 🎁 | **Grab One** | Take one gift from the pile. |
 | 🫴 | **Forced Tribute** | Give one of your gifts to a random player. |
 | 🥷 | **The Grinch Tax** | Steal any gift from a random player. |
-| 🤏 | **Tiny Toss Right** | Everyone passes their smallest gift to the right. |
-| 💪 | **Mega Move Left** | Everyone passes their biggest gift to the left. |
+| 🤏 | **Tiny Toss Right** | Everyone passes their smallest gift 1–3 seats to the right. |
+| 💪 | **Mega Move Left** | Everyone passes their biggest gift 1–3 seats to the left. |
+| ↔️ | **Across the Table** | Swap one gift with the person straight across from you. |
+| 🏃 | **Gift Relay** | One of your gifts races through three random players. The last one keeps it. |
 
 ### Phase 2 · ENDGAME (3 rolls each)
 
@@ -65,11 +70,45 @@ Seats go **clockwise**. Facing the middle of the table, the person clockwise fro
 | 🗑️ | **Trash Trade** | You and a random player swap one unwanted gift each. |
 | 🃏 | **Joker Swap** | Two random players take one gift from each other. |
 | 🎅 | **Santa's Hand** | Give a gift away. The receiver picks which one. |
-| 🌪️ | **Twist of Fate** | Everyone passes ALL unfrozen gifts one seat left or right. |
+| 🌪️ | **Twist of Fate** | Everyone passes ALL unfrozen gifts 1–3 seats left or right. |
+| 🏹 | **Robin Hood** | The richest player gives a gift to the poorest. |
+| ↔️ | **Cross-Table Flip** | Swap ALL unfrozen gifts with the person straight across. |
+
+### ⭐ WILDCARD (both phases)
+
+The wildcard spins a second wheel of pure nonsense:
+
+| | Wildcard | What happens |
+|---|---|---|
+| 💺 | **Musical Chairs** | Two random players swap seats, gifts and all. New neighbours, new enemies. |
+| 🌨️ | **Blizzard** | All unfrozen gifts go in the middle and get dealt back out around the table. |
+| 🎰 | **Jackpot** | A random player takes a gift from BOTH neighbours. |
+| 🙈 | **Blindfold Heist** | Steal a gift with your eyes closed. The table may guide you. The table may lie. |
+| 🥔 | **Hot Potato** | Your gift goes round the table to the left while everyone counts. It stops after 3 to 30 hands. |
+| 🔁 | **Encore!** | Roll again. Right now. |
+| 🫠 | **Global Warming** | Endgame only: every frozen gift melts. |
+| 🥗 | **Fruit Salad** | Everyone swaps one gift with the person straight across. All at once. |
+
+### 🌟 Christmas Miracle
+
+After the very last roll, anyone still empty-handed gets a gift from the richest player. Nobody goes home with nothing.
 
 The app only offers actions that are actually possible (no stealing from empty hands), and keeps track of every gift so the table and the screen never disagree.
 
 ![Endgame](docs/endgame.jpg)
+
+## Balanced by simulation
+
+`pnpm simulate 15 30` plays 10,000 instant games with the real rules (15 guests, 30 gifts) and prints how the gifts end up. With the current tuning:
+
+| | Old rules | Now |
+|---|---|---|
+| Someone ends with 0 gifts | 91% of games | 0% (26% of games need the Christmas Miracle) |
+| Biggest hoard, typical | 5 | 3–4 |
+| Biggest hoard, worst seen | 10 | 7 |
+| Final hands | 0 (13%) · 1 (29%) · 2 (27%) · 3 (17%) · 4+ (15%) | 1 (24%) · 2 (54%) · 3 (19%) · 4+ (2%) |
+
+Try your own table size: `pnpm simulate <players> <gifts> <games>`.
 
 ## Party features
 
@@ -89,6 +128,7 @@ pnpm install
 pnpm dev        # http://localhost:5173
 pnpm build      # static site in dist/, host it anywhere
 pnpm lint       # Biome
+pnpm simulate   # balance check, e.g. pnpm simulate 15 30
 ```
 
 100% client-side. No backend, no accounts, nothing stored except game state, language and sound settings in `localStorage`.
@@ -100,6 +140,7 @@ React 18 + TypeScript + Vite, plain CSS, zero runtime dependencies beyond React.
 | Where | What |
 |---|---|
 | `src/game/actions.ts` | Pure rules: what each roll does to the players and the pile. |
+| `src/game/rules.ts` | Odds, who gets targeted, turn and phase flow, and the instant simulator. |
 | `src/game/seating.ts` | Seat shuffling and left/right neighbour maths. |
 | `src/constants/tables.ts` | The two action tables, roll counts and when each action is possible. |
 | `src/constants/messages.ts` | Every word of copy, in English and Swedish. |

@@ -1,123 +1,78 @@
+import { oppositeOf } from "../game/seating";
+import { possibleWildcards } from "../game/wildcards";
 import type { GamePhase, Player } from "../types/game";
 
-export type ActionTable = Record<
-  number,
-  {
-    title: string;
-    description: string;
-    emoji: string;
-    requires?: (
-      playerIndex: number,
-      players: Player[],
-      pileCount?: number
-    ) => boolean;
-  }
->;
+export type ActionInfo = {
+  emoji: string;
+  /** Whether the action can do anything right now. */
+  requires?: (playerIndex: number, players: Player[], pileCount?: number) => boolean;
+};
+
+export type ActionTable = Record<number, ActionInfo>;
 
 export const WARMUP_ROLLS = 3;
 export const ENDGAME_ROLLS = 3;
 export const PACKAGES_PER_PLAYER = 2;
+
+const hasGifts = (p?: Player) => Boolean(p?.packages.length);
+const hasUnlocked = (p?: Player) => Boolean(p?.packages.some((pkg) => !pkg.locked));
+const anyUnlocked = (players: Player[]) => players.some(hasUnlocked);
+const othersUnlocked = (idx: number, players: Player[]) =>
+  players.some((p, i) => i !== idx && hasUnlocked(p));
+const opposite = (idx: number, players: Player[]) =>
+  players[oppositeOf(idx, players.length)];
+
 export const warmupTable: ActionTable = {
-  1: {
-    title: "Double Grab",
-    description: "Take two gifts from the pile.",
-    emoji: "🎁🎁",
-    requires: (_playerIndex, _players, pile) => (pile ?? 0) >= 2,
+  1: { emoji: "🎁🎁", requires: (_i, _p, pile) => (pile ?? 0) >= 2 },
+  2: { emoji: "🎁", requires: (_i, _p, pile) => (pile ?? 0) >= 1 },
+  3: { emoji: "🫴", requires: (i, players) => hasUnlocked(players[i]) },
+  4: { emoji: "🥷", requires: othersUnlocked },
+  5: { emoji: "🤏", requires: (_i, players) => anyUnlocked(players) },
+  6: { emoji: "💪", requires: (_i, players) => anyUnlocked(players) },
+  7: {
+    emoji: "↔️",
+    requires: (i, players) =>
+      players.length >= 3 && (hasUnlocked(players[i]) || hasUnlocked(opposite(i, players))),
   },
-  2: {
-    title: "Single Grab",
-    description: "Take one gift from the pile.",
-    emoji: "🎁",
-    requires: (_playerIndex, _players, pile) => (pile ?? 0) >= 1,
+  8: {
+    emoji: "🏃",
+    requires: (i, players) => players.length >= 3 && hasUnlocked(players[i]),
   },
-  3: {
-    title: "Forced Tribute",
-    description: "Give one of your gifts to a random player.",
-    emoji: "🫴",
-    requires: (playerIndex, players) =>
-      players[playerIndex].packages.length > 0,
-  },
-  4: {
-    title: "The Grinch Tax",
-    description: "Steal one unlocked gift from a random player.",
-    emoji: "🥷",
-    requires: (playerIndex, players) => {
-      const otherPlayers = players.filter((_, idx) => idx !== playerIndex);
-      return otherPlayers.some((player) =>
-        player.packages.some((pkg) => !pkg.locked)
-      );
-    },
-  },
-  5: {
-    title: "Tiny Toss Right",
-    description: "Send your smallest gift to the right.",
-    emoji: "🤏",
-    requires: (_playerIndex, players) =>
-      players.some((player) => player.packages.length > 0),
-  },
-  6: {
-    title: "Mega Move Left",
-    description: "Send your largest gift to the left.",
-    emoji: "💪",
-    requires: (_playerIndex, players) =>
-      players.some((player) => player.packages.length > 0),
-  },
+  9: { emoji: "⭐", requires: (i, players) => possibleWildcards("warmup", players, i).length > 0 },
 };
 
 export const endgameTable: ActionTable = {
-  1: {
-    title: "Ice Lock",
-    description:
-      "Freeze one of your gifts. Frozen gifts can’t be traded, stolen, given away, or rotated.",
-    emoji: "🧊",
-    requires: (playerIndex, players) =>
-      players[playerIndex].packages.some((pkg) => !pkg.locked),
-  },
-  2: {
-    title: "Full Flip",
-    description:
-      "Swap all unlocked gifts with a random player. Frozen gifts stay put.",
-    emoji: "🔄",
-    requires: (playerIndex, players) =>
-      players.some(
-        (p, idx) => idx !== playerIndex && p.packages.some((pkg) => !pkg.locked)
-      ),
-  },
+  1: { emoji: "🧊", requires: (i, players) => hasUnlocked(players[i]) },
+  2: { emoji: "🔄", requires: othersUnlocked },
   3: {
-    title: "Trash Trade",
-    description:
-      "Trade unlocked gifts with a random player. Frozen gifts never move.",
     emoji: "🗑️",
-    requires: (playerIndex, players) =>
-      players[playerIndex].packages.some((pkg) => !pkg.locked) &&
-      players.some(
-        (p, idx) => idx !== playerIndex && p.packages.some((pkg) => !pkg.locked)
-      ),
+    requires: (i, players) => hasUnlocked(players[i]) && othersUnlocked(i, players),
   },
   4: {
-    title: "Joker Swap",
-    description:
-      "Two random players each choose an unlocked gift from the other to swap.",
     emoji: "🃏",
-    requires: (_playerIndex, players) =>
-      players.filter((p) => p.packages.some((pkg) => !pkg.locked)).length >= 2,
+    requires: (_i, players) => players.filter(hasUnlocked).length >= 2,
   },
-  5: {
-    title: "Santa's Hand",
-    description: "Give away an unlocked gift picked by another random player.",
-    emoji: "🎅",
-    requires: (playerIndex, players) =>
-      players[playerIndex].packages.some((pkg) => !pkg.locked),
+  5: { emoji: "🎅", requires: (i, players) => hasUnlocked(players[i]) },
+  6: { emoji: "🌪️", requires: (_i, players) => anyUnlocked(players) },
+  7: {
+    emoji: "🏹",
+    requires: (_i, players) => {
+      const richest = Math.max(
+        ...players.map((p) => p.packages.filter((pkg) => !pkg.locked).length)
+      );
+      const poorest = Math.min(...players.map((p) => p.packages.length));
+      return richest - poorest >= 2;
+    },
   },
-  6: {
-    title: "Twist of Fate",
-    description:
-      "Everyone rotates unlocked gifts one step left or right at random.",
-    emoji: "🌪️",
-    requires: (_playerIndex, players) =>
-      players.some((player) => player.packages.some((pkg) => !pkg.locked)),
+  8: {
+    emoji: "↔️",
+    requires: (i, players) =>
+      players.length >= 3 && (hasUnlocked(players[i]) || hasUnlocked(opposite(i, players))),
   },
+  9: { emoji: "⭐", requires: (i, players) => possibleWildcards("endgame", players, i).length > 0 },
 };
 
 export const getPhaseTable = (phase: GamePhase) =>
   phase === "warmup" ? warmupTable : endgameTable;
+
+export { hasGifts };
