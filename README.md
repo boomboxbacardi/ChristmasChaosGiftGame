@@ -25,7 +25,7 @@ You know the classic dice gift game. Pile of presents in the middle, everybody r
 - 🔦 **A spotlight picks the victim.** Watch the table light up while it decides who you rob.
 - 🧊 **Freeze your favourite gift** before someone flips your whole hand.
 - 🔥 **Two phases:** a greedy warm-up, then an ENDGAME where the table literally catches fire.
-- ⭐ **Wildcards** with eight unhinged events: musical chairs, blizzards, blindfold heists, hot potatoes…
+- ⭐ **Wildcards** with eight unhinged events: musical chairs, avalanches, blindfold heists, hot potatoes…
 - ↔️ **Chaos across the table**, not just next door: gifts jump to the person opposite, relay through three players, and travel up to three seats.
 - ⚖️ **Balanced for real parties.** Rich players get robbed more, gifts drift towards empty hands, and a Christmas Miracle makes sure nobody leaves with nothing.
 - 🏆 **Final standings and awards:** Gift Hoarder and Ice King.
@@ -81,13 +81,13 @@ The wildcard spins a second wheel of pure nonsense:
 | | Wildcard | What happens |
 |---|---|---|
 | 💺 | **Musical Chairs** | Two random players swap seats, gifts and all. New neighbours, new enemies. |
-| 🌨️ | **Blizzard** | All unfrozen gifts go in the middle and get dealt back out around the table. |
+| 🏔️ | **Avalanche** | A chain of steals rolls across the table, one person at a time. |
 | 🎰 | **Jackpot** | A random player takes a gift from BOTH neighbours. |
 | 🙈 | **Blindfold Heist** | Steal a gift with your eyes closed. The table may guide you. The table may lie. |
 | 🥔 | **Hot Potato** | Your gift goes round the table to the left while everyone counts. It stops after 3 to 30 hands. |
-| 🔁 | **Encore!** | Roll again. Right now. |
+| 🦹 | **Master Thief** | Steal a gift from whoever has the most. |
 | 🫠 | **Global Warming** | Endgame only: every frozen gift melts. |
-| 🥗 | **Fruit Salad** | Everyone swaps one gift with the person straight across. All at once. |
+| 🏹 | **Robin Hood** | Whoever has the most gifts hands one to whoever has the fewest. |
 
 ### 🌟 Christmas Miracle
 

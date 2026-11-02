@@ -22,6 +22,8 @@ const PALETTES: Record<string, string[]> = {
   freeze: ["#7fdcff", "#c9f3ff", "#ffffff", "#4fb6ff"],
   steal: ["#ff2e63", "#ff004c", "#2b0a1a", "#ffd23f"],
   endgame: ["#ff4d00", "#ff2e63", "#ffd23f", "#ff8a00"],
+  gain: ["#ffd23f", "#2ee6a6", "#ffffff", "#fff3b0", "#7fdcff"],
+  loss: ["#ff2e4d", "#ff004c", "#ff8a9a", "#6a0418"],
 };
 
 const GLYPHS: Record<string, string[]> = {
@@ -33,6 +35,8 @@ const GLYPHS: Record<string, string[]> = {
   endgame: ["🔥", "💥"],
   give: ["🎁"],
   swap: ["🔄", "🎁"],
+  gain: ["🎁", "✨", "⭐"],
+  loss: ["💸", "💔"],
 };
 
 const MAX_PARTICLES = 420;
@@ -58,7 +62,7 @@ const getSprite = (glyph: string) => {
   return sprite;
 };
 
-/** Snow, confetti, screen flashes and shakes. Purely decorative. */
+/** Snow, confetti and screen flashes. Purely decorative (no screen shake: it made people dizzy). */
 export const FxLayer = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particles = useRef<Particle[]>([]);
@@ -179,7 +183,8 @@ export const FxLayer = () => {
       const palette = PALETTES[kind] ?? PALETTES.default;
       const glyphs = GLYPHS[kind] ?? [];
       const big = kind === "victory" || kind === "start" || kind === "endgame";
-      const base = big ? 170 : kind === "calm" || kind === "rotate" ? 0 : 70;
+      const local = kind === "gain" || kind === "loss";
+      const base = event.count ?? (big ? 170 : kind === "calm" || kind === "rotate" ? 0 : 70);
       const wanted = lowPower ? Math.round(base / 2) : base;
       const count = Math.max(0, Math.min(wanted, MAX_PARTICLES - particles.current.length));
       const origins = big
@@ -191,9 +196,15 @@ export const FxLayer = () => {
         : [{ x: event.x ?? width * 0.5, y: event.y ?? height * 0.45 }];
       for (let i = 0; i < count; i += 1) {
         const o = origins[i % origins.length];
-        const angle = -Math.PI / 2 + (Math.random() - 0.5) * (big ? 1.6 : 2.6);
-        const speed = (big ? 9 : 6) + Math.random() * (big ? 12 : 8);
-        const useGlyph = glyphs.length && Math.random() < 0.14;
+        // Gains fountain upwards; losses burst out in every direction like a popped balloon.
+        const angle =
+          kind === "loss"
+            ? Math.random() * Math.PI * 2
+            : -Math.PI / 2 + (Math.random() - 0.5) * (big ? 1.6 : local ? 1.4 : 2.6);
+        const speed = local
+          ? 4 + Math.random() * (kind === "gain" ? 9 : 6)
+          : (big ? 9 : 6) + Math.random() * (big ? 12 : 8);
+        const useGlyph = glyphs.length && Math.random() < (local ? 0.3 : 0.14);
         particles.current.push({
           x: o.x,
           y: o.y,
@@ -203,7 +214,7 @@ export const FxLayer = () => {
           rot: Math.random() * Math.PI,
           vr: (Math.random() - 0.5) * 0.3,
           color: palette[Math.floor(Math.random() * palette.length)],
-          life: 90 + Math.random() * 90,
+          life: local ? 50 + Math.random() * 50 : 90 + Math.random() * 90,
           shape: useGlyph ? "emoji" : Math.random() < 0.3 ? "circle" : "rect",
           glyph: useGlyph ? glyphs[Math.floor(Math.random() * glyphs.length)] : undefined,
         });
@@ -214,12 +225,6 @@ export const FxLayer = () => {
       burst(event);
       if (["steal", "freeze", "endgame", "swap", "victory"].includes(event.kind)) {
         setFlash({ kind: event.kind, key: Date.now() });
-      }
-      if (!reduced && ["steal", "endgame", "swap"].includes(event.kind)) {
-        document.body.classList.remove("shake");
-        void document.body.offsetWidth;
-        document.body.classList.add("shake");
-        window.setTimeout(() => document.body.classList.remove("shake"), 650);
       }
     });
 
