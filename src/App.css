@@ -119,14 +119,27 @@ body.shake .app {
   letter-spacing: 0.02em;
   color: #fff;
   text-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
-  background: repeating-linear-gradient(-45deg, var(--stripe-a) 0 22px, var(--stripe-b) 22px 44px);
-  background-size: 200% 100%;
+  background: var(--stripe-a);
+  overflow: hidden;
+  isolation: isolate;
   box-shadow:
     0 8px 0 var(--red-deep),
     0 18px 40px rgba(255, 46, 77, 0.45),
     inset 0 2px 0 rgba(255, 255, 255, 0.35);
-  animation: stripes 3s linear infinite;
   transition: transform 120ms ease, box-shadow 120ms ease, filter 200ms ease;
+}
+/* Stripes scroll via transform (GPU) instead of background-position (repaint every frame). */
+.mega-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -124.45px;
+  right: 0;
+  z-index: -1;
+  background: repeating-linear-gradient(-45deg, var(--stripe-a) 0 22px, var(--stripe-b) 22px 44px);
+  animation: stripes 3s linear infinite;
+  will-change: transform;
 }
 .mega-btn:hover:not(:disabled) {
   transform: translateY(-2px) scale(1.01);
@@ -147,7 +160,12 @@ body.shake .app {
   --stripe-b: #8a45e6;
   color: #fff;
   box-shadow: 0 8px 0 #3d1580, 0 18px 40px rgba(138, 69, 230, 0.5);
-  animation: stripes 0.5s linear infinite;
+}
+.mega-btn--busy:disabled::before {
+  animation-duration: 0.5s;
+}
+.mega-btn:disabled:not(.mega-btn--busy)::before {
+  animation: none;
 }
 .mega-btn--busy .mega-btn__die {
   animation: die-spin 0.5s linear infinite;
@@ -169,8 +187,8 @@ body.shake .app {
 }
 
 @keyframes stripes {
-  from { background-position: 0 0; }
-  to { background-position: 124px 0; }
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(124.45px, 0, 0); }
 }
 @keyframes die-spin {
   to { transform: rotate(360deg); }
@@ -246,6 +264,15 @@ body.shake .app {
 .chip--endgame {
   background: linear-gradient(90deg, var(--red), var(--orange));
   border-color: rgba(255, 210, 63, 0.6);
+  position: relative;
+}
+.chip--endgame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 22px 4px rgba(255, 122, 0, 0.55);
+  pointer-events: none;
   animation: hot-pulse 1.4s ease-in-out infinite;
 }
 .chip--ended {
@@ -253,8 +280,8 @@ body.shake .app {
   color: #2a1600;
 }
 @keyframes hot-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 122, 0, 0.6); }
-  50% { box-shadow: 0 0 22px 4px rgba(255, 122, 0, 0.5); }
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
 }
 
 /* ============ Top bar ============ */
@@ -266,8 +293,7 @@ body.shake .app {
   align-items: center;
   gap: 16px;
   padding: 10px clamp(12px, 3vw, 28px);
-  background: linear-gradient(180deg, rgba(11, 3, 34, 0.85), rgba(11, 3, 34, 0.55));
-  backdrop-filter: blur(12px);
+  background: linear-gradient(180deg, rgba(11, 3, 34, 0.96), rgba(11, 3, 34, 0.86));
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 .topbar__status {
@@ -323,7 +349,6 @@ body.shake .app {
   border-radius: var(--radius);
   padding: clamp(16px, 2.5vw, 24px);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
 }
 .panel h2 {
   margin: 0;
@@ -699,10 +724,20 @@ body[data-phase="endgame"] .round-table__felt {
     0 0 0 16px #2a0600,
     0 0 90px rgba(255, 122, 0, 0.45),
     inset 0 0 50px rgba(0, 0, 0, 0.55);
+}
+/* Heat pulse = static glow + opacity animation (composited, no repaint). */
+body[data-phase="endgame"] .round-table__felt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 14px var(--gold), 0 0 130px rgba(255, 122, 0, 0.75);
+  pointer-events: none;
   animation: table-heat 2.4s ease-in-out infinite;
 }
 @keyframes table-heat {
-  50% { box-shadow: 0 0 0 10px #4a0b00, 0 0 0 14px var(--gold), 0 0 0 16px #2a0600, 0 0 130px rgba(255, 122, 0, 0.7), inset 0 0 50px rgba(0, 0, 0, 0.55); }
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
 }
 .round-table__rim {
   position: absolute;
@@ -834,6 +869,7 @@ body[data-phase="endgame"] .round-table__felt {
 }
 .seat__avatar-wrap {
   position: relative;
+  display: flex;
 }
 .avatar {
   display: inline-grid;
@@ -880,6 +916,15 @@ body[data-phase="endgame"] .round-table__felt {
   transform: scale(1.18);
   border-color: var(--gold);
   box-shadow: 0 0 0 5px rgba(255, 210, 63, 0.35), 0 0 34px rgba(255, 210, 63, 0.75);
+}
+.seat--active .seat__avatar-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  transform: scale(1.18);
+  box-shadow: 0 0 0 9px rgba(255, 210, 63, 0.2), 0 0 50px rgba(255, 210, 63, 0.9);
+  pointer-events: none;
   animation: glow 1.4s ease-in-out infinite;
 }
 .seat--active .seat__name {
@@ -887,7 +932,8 @@ body[data-phase="endgame"] .round-table__felt {
   color: #2a1600;
 }
 @keyframes glow {
-  50% { box-shadow: 0 0 0 9px rgba(255, 210, 63, 0.2), 0 0 50px rgba(255, 210, 63, 0.9); }
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
 }
 .seat--targeted .avatar {
   transform: scale(1.25) rotate(-6deg);
@@ -1278,8 +1324,7 @@ button.action-card {
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgba(6, 1, 20, 0.72);
-  backdrop-filter: blur(6px);
+  background: rgba(6, 1, 20, 0.82);
   animation: fade-in 0.25s ease both;
   overflow-y: auto;
 }
@@ -1552,12 +1597,35 @@ button.action-card {
 /* ============ Wildcard ============ */
 .action-card--wild {
   grid-column: 1 / -1;
-  border-color: transparent;
-  background:
-    linear-gradient(var(--panel-strong), var(--panel-strong)) padding-box,
-    linear-gradient(90deg, var(--pink), var(--gold), var(--mint), var(--ice), var(--pink)) border-box;
-  background-size: 100% 100%, 300% 100%;
-  animation: rainbow 4s linear infinite;
+  border: 0;
+  padding: 12px 14px;
+  overflow: hidden;
+  isolation: isolate;
+  background: transparent;
+}
+/* Rainbow border = a wide gradient strip sliding (transform) behind an inner fill. */
+.action-card--wild::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 300%;
+  z-index: -2;
+  background: linear-gradient(90deg, var(--pink), var(--gold), var(--mint), var(--ice), var(--pink), var(--gold), var(--mint), var(--ice), var(--pink));
+  animation: rainbow-slide 4s linear infinite;
+  will-change: transform;
+}
+.action-card--wild::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  z-index: -1;
+  border-radius: 14px;
+  background: var(--panel-strong);
+}
+@keyframes rainbow-slide {
+  to { transform: translate3d(-50%, 0, 0); }
 }
 .action-card--wild .action-card__text strong {
   font-size: 18px;
@@ -1568,11 +1636,19 @@ button.action-card {
 }
 .action-card--wild.action-card--lit,
 .action-card--wild.action-card--final {
-  background:
-    linear-gradient(135deg, #8a2be2, var(--pink)) padding-box,
-    linear-gradient(90deg, var(--gold), var(--mint), var(--ice), var(--pink), var(--gold)) border-box;
-  background-size: 100% 100%, 300% 100%;
+  background: transparent;
   color: #fff;
+}
+.action-card--wild.action-card--final {
+  animation: final-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.action-card--wild.action-card--lit::before,
+.action-card--wild.action-card--final::before {
+  animation-duration: 1.2s;
+}
+.action-card--wild.action-card--lit::after,
+.action-card--wild.action-card--final::after {
+  background: linear-gradient(135deg, #8a2be2, var(--pink));
 }
 .action-card--wild.action-card--lit .action-card__text strong,
 .action-card--wild.action-card--final .action-card__text strong {

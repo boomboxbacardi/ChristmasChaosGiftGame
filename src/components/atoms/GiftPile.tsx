@@ -1,13 +1,16 @@
+import { memo } from "react";
 import type { Package } from "../../types/game";
 
 type Props = { packages: Package[]; max?: number; emptyLabel?: string };
 
 /** A little stack of gift icons; frozen gifts are drawn as ice cubes. */
-export const GiftPile = ({ packages, max = 8, emptyLabel }: Props) => {
+export const GiftPile = memo(({ packages, max = 8, emptyLabel }: Props) => {
   if (!packages.length) {
     return emptyLabel ? <span className="gift-pile gift-pile--empty">{emptyLabel}</span> : null;
   }
-  const sorted = [...packages].sort((a, b) => Number(Boolean(b.locked)) - Number(Boolean(a.locked)));
+  const sorted = [...packages].sort(
+    (a, b) => Number(Boolean(b.locked)) - Number(Boolean(a.locked)),
+  );
   const shown = sorted.slice(0, max);
   const extra = packages.length - shown.length;
   return (
@@ -20,4 +23,4 @@ export const GiftPile = ({ packages, max = 8, emptyLabel }: Props) => {
       {extra > 0 && <span className="gift-pile__more">+{extra}</span>}
     </span>
   );
-};
+});
