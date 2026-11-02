@@ -27,7 +27,6 @@
   color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
 }
 
 * {
@@ -43,25 +42,43 @@ body {
 body {
   min-height: 100vh;
   background-color: var(--bg);
+  overflow-x: hidden;
+}
+
+/* The backdrop lives on its own fixed, GPU-composited layer so scrolling never
+   repaints these huge gradients (background-attachment: fixed did, every frame). */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  transform: translateZ(0);
+  transition: opacity 600ms ease;
+}
+body::before {
   background-image:
     radial-gradient(1200px 700px at 8% -10%, rgba(255, 46, 77, 0.42), transparent 60%),
     radial-gradient(900px 700px at 105% 10%, rgba(255, 79, 216, 0.28), transparent 60%),
     radial-gradient(1000px 800px at 80% 115%, rgba(46, 230, 166, 0.22), transparent 60%),
     radial-gradient(800px 600px at 0% 100%, rgba(127, 220, 255, 0.18), transparent 60%),
-    linear-gradient(180deg, var(--bg-2), var(--bg));
-  background-attachment: fixed;
-  transition: background-color 600ms ease;
-  overflow-x: hidden;
+    linear-gradient(180deg, #1a0638, #0b0322);
 }
-
-body[data-phase="endgame"] {
-  --bg: #1d0207;
-  --bg-2: #3a0610;
+body::after {
+  opacity: 0;
   background-image:
     radial-gradient(1100px 700px at 10% -10%, rgba(255, 122, 0, 0.55), transparent 60%),
     radial-gradient(900px 700px at 110% 0%, rgba(255, 46, 77, 0.5), transparent 60%),
     radial-gradient(1000px 700px at 50% 120%, rgba(255, 210, 63, 0.32), transparent 60%),
-    linear-gradient(180deg, var(--bg-2), var(--bg));
+    linear-gradient(180deg, #3a0610, #1d0207);
+}
+body[data-phase="endgame"] {
+  --bg: #1d0207;
+  --bg-2: #3a0610;
+}
+body[data-phase="endgame"]::after {
+  opacity: 1;
 }
 
 button,
