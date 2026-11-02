@@ -1989,10 +1989,6 @@ body[data-phase="endgame"] .round-table__center {
   .stage__emoji { font-size: clamp(44px, 6.5vh, 80px); }
   .stage__narrative {
     font-size: clamp(18px, 2.7vh, 32px);
-    display: -webkit-box;
-    -webkit-line-clamp: 4;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
   }
   .stage__turn { min-height: 0; }
   .mega-btn { min-height: clamp(64px, 8.5vh, 92px); font-size: clamp(20px, 2.8vh, 30px); }

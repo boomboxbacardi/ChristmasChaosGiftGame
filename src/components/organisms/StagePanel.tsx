@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { getPhaseTable } from "../../constants/tables";
 import { wildcardById } from "../../game/wildcards";
 import type { ChaosGame } from "../../hooks/useChaosGame";
@@ -23,11 +24,33 @@ export const StagePanel = ({ game }: Props) => {
             ? t("stage.ended")
             : t("stage.roll", { name });
 
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const narrativeRef = useRef<HTMLParagraphElement>(null);
+  const narrative = result && stage === "result" ? tm(result.narrative) : "";
+
+  // Long stories (wildcards with four names) shrink until they fit: never clipped, never scrolled.
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    const text = narrativeRef.current;
+    if (!body || !text) return undefined;
+    const fit = () => {
+      text.style.fontSize = "";
+      let size = Number.parseFloat(getComputedStyle(text).fontSize);
+      while (body.scrollHeight > body.clientHeight + 1 && size > 12) {
+        size -= 1;
+        text.style.fontSize = `${size}px`;
+      }
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [narrative]);
+
   const showNext = Boolean(result && stage === "result" && currentPlayer && phase !== "ended");
 
   return (
     <section className={`stage stage--${stage}`} aria-live="polite">
-      <div className="stage__body">
+      <div ref={bodyRef} className="stage__body">
         {result && stage === "result" ? (
           <div key={result.key} className={`stage__result stage__result--${result.fx}`}>
             <span className="stage__kicker">{t("stage.lastAction")}</span>
@@ -49,7 +72,9 @@ export const StagePanel = ({ game }: Props) => {
                       : t("stage.calm")}
               </h2>
             </div>
-            <p className="stage__narrative">{tm(result.narrative)}</p>
+            <p ref={narrativeRef} className="stage__narrative">
+              {narrative}
+            </p>
           </div>
         ) : (
           <div className="stage__turn">
