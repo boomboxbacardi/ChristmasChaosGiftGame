@@ -43,8 +43,10 @@
 }
 .logo__line--top {
   display: flex;
-  font-size: 0.42em;
-  letter-spacing: 0.14em;
+  font-family: var(--font-festive);
+  font-weight: 700;
+  font-size: 0.5em;
+  letter-spacing: 0.08em;
 }
 .logo__line--top span {
   display: inline-block;
@@ -53,34 +55,28 @@
 }
 .logo__line--top span:nth-child(3n + 1) { color: var(--red); }
 .logo__line--top span:nth-child(3n + 2) { color: var(--ink); }
-.logo__line--top span:nth-child(3n) { color: var(--mint); }
+.logo__line--top span:nth-child(3n) { color: var(--gold); }
 .logo__line--bottom {
   font-size: 1em;
   color: var(--gold);
+  letter-spacing: 0.03em;
   text-shadow:
-    3px 0 0 var(--red),
-    -3px 0 0 var(--ice),
-    0 6px 0 rgba(0, 0, 0, 0.35);
-  animation: glitch 3.5s steps(1) infinite;
+    0 0.05em 0 var(--red-deep),
+    0 0.1em 0 rgba(0, 0, 0, 0.35),
+    0 0 0.4em rgba(255, 207, 74, 0.45);
 }
-.logo--sm { font-size: 30px; }
-.logo--sm .logo__line--bottom { text-shadow: 2px 0 0 var(--red), -2px 0 0 var(--ice); }
+.logo--sm { font-size: 32px; }
 .logo--xl {
   font-size: clamp(72px, 17vw, 170px);
   align-items: center;
 }
-.logo--xl .logo__line--top { font-size: 0.32em; letter-spacing: 0.22em; }
+.logo--xl .logo__line--top { font-size: 0.4em; letter-spacing: 0.12em; }
 
 @keyframes candy-bounce {
   0%, 100% { transform: translateY(0) rotate(0); }
   50% { transform: translateY(-0.12em) rotate(-4deg); }
 }
 
-@keyframes glitch {
-  /* Colour-only glitch: no jitter, so nobody gets seasick. */
-  0%, 92%, 100% { opacity: 1; }
-  95% { opacity: 0.85; text-shadow: -4px 0 0 var(--red), 4px 0 0 var(--ice); }
-}
 
 .display {
   font-family: var(--font-display);
@@ -90,8 +86,8 @@
 
 /* ============ Buttons & chips ============ */
 .mega-btn {
-  --stripe-a: var(--red);
-  --stripe-b: #ff5a72;
+  --stripe-a: #d3202f;
+  --stripe-b: #e94352;
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -106,13 +102,14 @@
   font-size: clamp(18px, 2.4vw, 26px);
   letter-spacing: 0.02em;
   color: #fff;
-  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
+  text-shadow: 0 3px 0 rgba(90, 0, 15, 0.75), 0 0 12px rgba(90, 0, 15, 0.6);
   background: var(--stripe-a);
   overflow: hidden;
   isolation: isolate;
   box-shadow:
     0 8px 0 var(--red-deep),
-    0 18px 40px rgba(255, 46, 77, 0.45),
+    0 18px 40px rgba(232, 40, 63, 0.4),
+    inset 0 0 0 3px rgba(255, 207, 74, 0.8),
     inset 0 2px 0 rgba(255, 255, 255, 0.35);
   transition: transform 120ms ease, box-shadow 120ms ease, filter 200ms ease;
 }
@@ -125,7 +122,14 @@
   left: -124.45px;
   right: 0;
   z-index: -1;
-  background: repeating-linear-gradient(-45deg, var(--stripe-a) 0 22px, var(--stripe-b) 22px 44px);
+  /* Candy cane: two reds with thin white pinstripes (44px period keeps the loop seamless). */
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--stripe-a) 0 19px,
+    rgba(255, 248, 236, 0.85) 19px 22px,
+    var(--stripe-b) 22px 41px,
+    rgba(255, 248, 236, 0.85) 41px 44px
+  );
   animation: stripes 3s linear infinite;
   will-change: transform;
 }
@@ -138,16 +142,16 @@
   box-shadow: 0 2px 0 var(--red-deep), 0 8px 20px rgba(255, 46, 77, 0.4);
 }
 .mega-btn:disabled {
-  --stripe-a: #4b3b6e;
-  --stripe-b: #5a4a80;
+  --stripe-a: #5b4a45;
+  --stripe-b: #6a5853;
   color: rgba(255, 255, 255, 0.7);
-  box-shadow: 0 8px 0 #2b1f45;
+  box-shadow: 0 8px 0 #3a2b28;
 }
 .mega-btn--busy:disabled {
-  --stripe-a: #6a2bbd;
-  --stripe-b: #8a45e6;
+  --stripe-a: #16733f;
+  --stripe-b: #219150;
   color: #fff;
-  box-shadow: 0 8px 0 #3d1580, 0 18px 40px rgba(138, 69, 230, 0.5);
+  box-shadow: 0 8px 0 #0b4024, 0 18px 40px rgba(63, 217, 138, 0.4), inset 0 0 0 3px rgba(255, 207, 74, 0.8);
 }
 .mega-btn--busy:disabled::before {
   animation-duration: 0.5s;
@@ -246,8 +250,8 @@
   font-family: var(--font-display);
   font-weight: 400;
   letter-spacing: 0.03em;
-  background: linear-gradient(90deg, var(--pine), #138a57);
-  border-color: rgba(46, 230, 166, 0.5);
+  background: linear-gradient(90deg, #b3122f, var(--red));
+  border-color: rgba(255, 207, 74, 0.6);
 }
 .chip--endgame {
   background: linear-gradient(90deg, var(--red), var(--orange));
@@ -281,8 +285,9 @@
   align-items: center;
   gap: 16px;
   padding: 10px clamp(12px, 3vw, 28px);
-  background: linear-gradient(180deg, rgba(11, 3, 34, 0.96), rgba(11, 3, 34, 0.86));
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(180deg, #0f4a2e, #0b3622);
+  border-bottom: 3px solid var(--gold-deep);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
 }
 .topbar__status {
   display: flex;
@@ -369,15 +374,16 @@
 }
 .hero__tagline {
   margin: 18px 0 6px;
-  font-family: var(--font-display);
-  font-size: clamp(20px, 3.4vw, 34px);
+  font-family: var(--font-festive);
+  font-weight: 700;
+  font-size: clamp(24px, 4vw, 42px);
   color: var(--ink);
   transform: rotate(-1.5deg);
 }
 .hero__tagline::before,
 .hero__tagline::after {
-  content: "✦";
-  color: var(--gold);
+  content: "❄";
+  color: var(--ice);
   margin: 0 12px;
 }
 .hero__pitch {
@@ -689,29 +695,25 @@
   position: absolute;
   inset: 20%;
   border-radius: 50%;
+  /* A red Christmas tablecloth with tiny gold embroidery dots. */
   background:
-    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.14), transparent 45%),
-    repeating-radial-gradient(circle at center, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 6px),
-    radial-gradient(circle at center, #1a8a55, #0b4d2f 65%, #05301c);
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.16), transparent 45%),
+    radial-gradient(circle, rgba(255, 220, 150, 0.32) 1.2px, transparent 1.8px) 0 0 / 18px 18px,
+    radial-gradient(circle at center, #cf2840, #96122a 60%, #520615);
   box-shadow:
-    0 0 0 10px #7a3e12,
-    0 0 0 14px var(--gold-deep),
-    0 0 0 16px #5a2c0b,
     0 30px 80px rgba(0, 0, 0, 0.6),
-    inset 0 0 50px rgba(0, 0, 0, 0.55);
+    inset 0 0 60px rgba(40, 0, 8, 0.6);
   display: grid;
   place-items: center;
 }
 body[data-phase="endgame"] .round-table__felt {
   background:
     radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.14), transparent 45%),
-    radial-gradient(circle at center, #b3122f, #6a0418 65%, #33010b);
+    radial-gradient(circle, rgba(255, 200, 80, 0.4) 1.2px, transparent 1.8px) 0 0 / 18px 18px,
+    radial-gradient(circle at center, #e2531c, #9a1d08 60%, #3a0800);
   box-shadow:
-    0 0 0 10px #4a0b00,
-    0 0 0 14px var(--orange),
-    0 0 0 16px #2a0600,
-    0 0 90px rgba(255, 122, 0, 0.45),
-    inset 0 0 50px rgba(0, 0, 0, 0.55);
+    0 0 90px rgba(255, 122, 0, 0.5),
+    inset 0 0 60px rgba(40, 0, 0, 0.6);
 }
 /* Heat pulse = static glow + opacity animation (composited, no repaint). */
 body[data-phase="endgame"] .round-table__felt::after {
@@ -719,7 +721,7 @@ body[data-phase="endgame"] .round-table__felt::after {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  box-shadow: 0 0 0 14px var(--gold), 0 0 130px rgba(255, 122, 0, 0.75);
+  box-shadow: 0 0 130px rgba(255, 122, 0, 0.8);
   pointer-events: none;
   animation: table-heat 2.4s ease-in-out infinite;
 }
@@ -729,9 +731,9 @@ body[data-phase="endgame"] .round-table__felt::after {
 }
 .round-table__rim {
   position: absolute;
-  inset: 6%;
+  inset: 8%;
   border-radius: 50%;
-  border: 2px dashed rgba(255, 210, 63, 0.25);
+  border: 3px dotted rgba(255, 244, 220, 0.4);
   animation: die-spin 60s linear infinite;
 }
 .round-table--shuffling .round-table__rim {
@@ -779,6 +781,7 @@ body[data-phase="endgame"] .round-table__felt::after {
 }
 .round-table__spin {
   position: absolute;
+  z-index: 3;
   inset: -2%;
   color: var(--gold);
   filter: drop-shadow(0 0 10px rgba(255, 210, 63, 0.8));
@@ -884,14 +887,15 @@ body[data-phase="endgame"] .round-table__felt::after {
   white-space: nowrap;
   padding: 1px 8px;
   border-radius: 8px;
-  background: rgba(11, 3, 34, 0.7);
-  font-weight: 800;
+  background: var(--cream);
+  color: #7a0f1d;
+  font-weight: 900;
   font-size: var(--seat-font);
 }
 .seat__crown {
   position: absolute;
   top: -0.9em;
-  left: 50%;
+  left: 18%;
   transform: translateX(-50%);
   font-size: calc(var(--seat-avatar) * 0.42);
   z-index: 2;
@@ -917,7 +921,7 @@ body[data-phase="endgame"] .round-table__felt::after {
 }
 .seat--active .seat__name {
   background: var(--gold);
-  color: #2a1600;
+  color: #3a1d00;
 }
 @keyframes glow {
   0%, 100% { opacity: 0; }
@@ -930,6 +934,7 @@ body[data-phase="endgame"] .round-table__felt::after {
 }
 .seat--targeted .seat__name {
   background: var(--red);
+  color: #fff;
 }
 .seat--involved .avatar {
   border-color: var(--mint);
@@ -1018,9 +1023,9 @@ body[data-phase="endgame"] .round-table__felt::after {
   padding: clamp(18px, 2.6vw, 26px);
   border-radius: 28px;
   background:
-    linear-gradient(var(--panel-strong), var(--panel-strong)) padding-box,
-    linear-gradient(135deg, var(--red), var(--gold), var(--mint), var(--ice)) border-box;
-  border: 3px solid transparent;
+    linear-gradient(#10301f, #0d281a) padding-box,
+    repeating-linear-gradient(45deg, var(--red) 0 12px, #fff7ee 12px 24px) border-box;
+  border: 6px solid transparent;
   box-shadow: var(--shadow);
   overflow: hidden;
 }
@@ -1234,7 +1239,7 @@ button.action-card {
 }
 .action-card--lit {
   transform: scale(1.04);
-  background: linear-gradient(135deg, rgba(255, 210, 63, 0.85), rgba(255, 122, 0, 0.85));
+  background: linear-gradient(135deg, rgba(255, 214, 90, 0.95), rgba(240, 150, 30, 0.95));
   border-color: #fff3b0;
   box-shadow: 0 0 30px rgba(255, 210, 63, 0.6);
   color: #2a1600;
@@ -1250,7 +1255,7 @@ button.action-card {
   border-color: transparent;
   background:
     linear-gradient(135deg, var(--red), #ff6a3d) padding-box,
-    linear-gradient(90deg, var(--gold), var(--mint), var(--ice), var(--pink), var(--gold)) border-box;
+    linear-gradient(90deg, var(--gold), #fff, var(--mint), var(--gold), #fff, var(--gold)) border-box;
   background-size: 100% 100%, 300% 100%;
   animation: final-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), rainbow 2s linear infinite;
   box-shadow: 0 0 40px rgba(255, 46, 77, 0.7);
@@ -1293,7 +1298,7 @@ button.action-card {
 }
 .die__pip {
   border-radius: 50%;
-  background: #1a0638;
+  background: #4a0a14;
 }
 .action-card--final .die__pip,
 .action-card--lit .die__pip {
@@ -1308,14 +1313,14 @@ button.action-card {
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgba(6, 1, 20, 0.82);
+  background: rgba(4, 16, 11, 0.86);
   animation: fade-in 0.25s ease both;
   overflow-y: auto;
 }
 .overlay--takeover {
   background:
     radial-gradient(circle at 50% 40%, rgba(255, 46, 77, 0.35), transparent 60%),
-    rgba(6, 1, 20, 0.88);
+    rgba(4, 16, 11, 0.9);
 }
 @keyframes fade-in {
   from { opacity: 0; }
@@ -1438,9 +1443,10 @@ button.action-card {
   padding: clamp(10px, 3vw, 30px);
 }
 .takeover__kicker {
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.25em;
+  font-family: var(--font-festive);
+  font-size: clamp(22px, 3vw, 34px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
   color: var(--ink-soft);
 }
 .takeover__title {
@@ -1461,19 +1467,17 @@ button.action-card {
   z-index: -1;
   pointer-events: none;
 }
+/* A chunky red "ribbon" shadow under the title, plus a snowy highlight. */
 .takeover__title::before {
-  color: var(--ice);
-  transform: translate(-4px, 0);
-  mix-blend-mode: screen;
-  opacity: 0.7;
-  animation: glitch 2.5s steps(1) infinite;
+  color: var(--red-deep);
+  transform: translate(0, 0.06em);
 }
 .takeover__title::after {
-  color: var(--red);
-  transform: translate(4px, 0);
-  mix-blend-mode: screen;
-  opacity: 0.7;
-  animation: glitch 2.5s steps(1) infinite reverse;
+  color: rgba(255, 255, 255, 0.35);
+  transform: translate(0, -0.03em);
+  -webkit-mask-image: linear-gradient(180deg, #000 0 22%, transparent 34%);
+  mask-image: linear-gradient(180deg, #000 0 22%, transparent 34%);
+  z-index: 1;
 }
 .takeover--endgame .takeover__title {
   background: linear-gradient(180deg, var(--gold), var(--orange) 55%, var(--red));
@@ -1596,7 +1600,7 @@ button.action-card {
   left: 0;
   width: 300%;
   z-index: -2;
-  background: linear-gradient(90deg, var(--pink), var(--gold), var(--mint), var(--ice), var(--pink), var(--gold), var(--mint), var(--ice), var(--pink));
+  background: linear-gradient(90deg, var(--red), var(--gold), var(--mint), #fff, var(--red), var(--gold), var(--mint), #fff, var(--red));
   animation: rainbow-slide 4s linear infinite;
   will-change: transform;
 }
@@ -1613,7 +1617,7 @@ button.action-card {
 }
 .action-card--wild .action-card__text strong {
   font-size: 18px;
-  background: linear-gradient(90deg, var(--gold), var(--pink));
+  background: linear-gradient(90deg, var(--gold), #ff8a9a);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -1632,7 +1636,7 @@ button.action-card {
 }
 .action-card--wild.action-card--lit::after,
 .action-card--wild.action-card--final::after {
-  background: linear-gradient(135deg, #8a2be2, var(--pink));
+  background: linear-gradient(135deg, #b3122f, #0f6b3a);
 }
 .action-card--wild.action-card--lit .action-card__text strong,
 .action-card--wild.action-card--final .action-card__text strong {
@@ -1643,8 +1647,8 @@ button.action-card {
   color: rgba(255, 255, 255, 0.85);
 }
 .stage--wild .mega-btn--busy:disabled {
-  --stripe-a: var(--pink);
-  --stripe-b: #8a2be2;
+  --stripe-a: #d39a00;
+  --stripe-b: #d3202f;
 }
 
 
@@ -1707,7 +1711,7 @@ body[data-phase="endgame"] .round-table__bulbs {
   height: 50%;
   transform: translateX(-50%);
   clip-path: polygon(50% 100%, 0 0, 100% 0);
-  background: linear-gradient(to top, rgba(255, 190, 40, 0) 30%, rgba(255, 190, 40, 0.14) 65%, rgba(255, 220, 90, 0.42));
+  background: linear-gradient(to top, rgba(255, 190, 90, 0) 30%, rgba(255, 190, 90, 0.16) 65%, rgba(255, 236, 170, 0.45));
 }
 body[data-phase="endgame"] .round-table__beam {
   background: linear-gradient(to top, rgba(255, 122, 0, 0) 25%, rgba(255, 122, 0, 0.28) 70%, rgba(255, 210, 63, 0.4));
@@ -1732,21 +1736,22 @@ body[data-phase="endgame"] .round-table__beam {
   content: "";
   position: absolute;
   left: 50%;
-  top: -14%;
-  width: 280%;
+  top: -22%;
+  width: 420%;
   aspect-ratio: 1;
   transform: translateX(-50%);
-  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  /* A golden tree-top star. */
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
   background: var(--gold);
 }
 .round-table__center {
   z-index: 2;
   padding: 6%;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(5, 48, 28, 0.85) 40%, transparent 72%);
+  background: radial-gradient(circle, rgba(90, 6, 21, 0.8) 40%, transparent 72%);
 }
 body[data-phase="endgame"] .round-table__center {
-  background: radial-gradient(circle, rgba(106, 4, 24, 0.85) 40%, transparent 72%);
+  background: radial-gradient(circle, rgba(80, 12, 0, 0.8) 40%, transparent 72%);
 }
 
 /* Seats */
@@ -1759,7 +1764,7 @@ body[data-phase="endgame"] .round-table__center {
   position: absolute;
   inset: -16%;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.16), transparent 68%);
+  background: radial-gradient(circle, rgba(255, 200, 120, 0.26), transparent 68%);
   pointer-events: none;
 }
 .seat .avatar {
@@ -1767,7 +1772,7 @@ body[data-phase="endgame"] .round-table__center {
 }
 .seat__name {
   padding: 2px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(122, 15, 29, 0.35);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
 }
 .seat__count {
@@ -1797,7 +1802,7 @@ body[data-phase="endgame"] .round-table__center {
 .seat__leader {
   position: absolute;
   top: -0.85em;
-  left: 50%;
+  left: 18%;
   z-index: 2;
   transform: translateX(-50%) rotate(-8deg);
   font-size: calc(var(--seat-avatar) * 0.42);
@@ -2036,4 +2041,120 @@ body[data-phase="endgame"] .round-table__center {
     white-space: nowrap;
     letter-spacing: -0.2em;
   }
+}
+
+/* ============ Christmas dressing ============ */
+/* Everything below is static decoration (painted once) or opacity/transform-only animation. */
+
+/* A pine wreath around the tablecloth; the fairy-light SVGs sit on top of it. */
+.round-table__wreath {
+  position: absolute;
+  inset: 15.5%;
+  z-index: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.14), transparent 45%),
+    radial-gradient(circle closest-side, rgba(0, 0, 0, 0.5) 81%, transparent 87%, transparent 93%, rgba(0, 0, 0, 0.45) 100%),
+    repeating-conic-gradient(from 0deg, #2f9152 0 2deg, #124d29 2deg 4.5deg, #1e6d3a 4.5deg 7deg);
+  -webkit-mask-image: radial-gradient(circle closest-side, transparent 80.5%, #000 81.5%, #000 98.5%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side, transparent 80.5%, #000 81.5%, #000 98.5%, transparent 100%);
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.5));
+}
+
+/* Every guest wears a tomteluva. */
+.seat .avatar {
+  position: relative;
+}
+.seat .avatar::before,
+.seat .avatar::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+.seat .avatar::before {
+  left: 18%;
+  top: -42%;
+  width: 72%;
+  height: 58%;
+  clip-path: polygon(0 100%, 100% 100%, 90% 4%);
+  background:
+    linear-gradient(to top, #f7f2ea 0 26%, transparent 26%),
+    linear-gradient(100deg, #b3122f, #ef3a4f 55%, #a80f28);
+}
+.seat .avatar::after {
+  left: 70%;
+  top: -52%;
+  width: 26%;
+  height: 26%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff, #e6e1d8);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+}
+
+/* A string of Christmas lights hanging under the top bar. */
+.topbar::before,
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 26px;
+  margin-top: 1px;
+  pointer-events: none;
+  background-repeat: repeat-x;
+  background-size: 120px 26px;
+}
+.topbar::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='26'%3E%3Cpath d='M0 3 Q30 17 60 3 Q90 17 120 3' fill='none' stroke='%23163a20' stroke-width='2'/%3E%3Cg fill='%232b2b2b'%3E%3Crect x='13.5' y='7.5' width='3' height='3' rx='0.8'/%3E%3Crect x='43.5' y='7.5' width='3' height='3' rx='0.8'/%3E%3Crect x='73.5' y='7.5' width='3' height='3' rx='0.8'/%3E%3Crect x='103.5' y='7.5' width='3' height='3' rx='0.8'/%3E%3C/g%3E%3Cellipse cx='15' cy='15' rx='3.6' ry='5.2' fill='%23ff3b4f'/%3E%3Cellipse cx='45' cy='15' rx='3.6' ry='5.2' fill='%23ffcf4a'/%3E%3Cellipse cx='75' cy='15' rx='3.6' ry='5.2' fill='%233fd98a'/%3E%3Cellipse cx='105' cy='15' rx='3.6' ry='5.2' fill='%236cc8ff'/%3E%3C/svg%3E");
+}
+.topbar::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='26'%3E%3Ccircle cx='15' cy='15' r='9' fill='%23ff3b4f' opacity='0.35'/%3E%3Ccircle cx='75' cy='15' r='9' fill='%233fd98a' opacity='0.35'/%3E%3Ccircle cx='15' cy='14' r='2' fill='%23fff' opacity='0.9'/%3E%3Ccircle cx='75' cy='14' r='2' fill='%23fff' opacity='0.9'/%3E%3C/svg%3E");
+  will-change: opacity;
+  animation: twinkle 1.8s ease-in-out infinite;
+}
+
+/* Snow piled on top of panels. */
+.panel,
+.board {
+  position: relative;
+}
+.panel::before,
+.board::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: -13px;
+  height: 17px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 100%, #f7fbff 0 11px, transparent 11.5px) 0 0 / 30px 17px repeat-x,
+    radial-gradient(circle at 50% 100%, #e1edf7 0 8px, transparent 8.5px) 15px 4px / 30px 17px repeat-x,
+    linear-gradient(#f2f8fc, #f2f8fc) 0 100% / 100% 4px no-repeat;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
+}
+
+/* Snowdrifts along the bottom of the screen, behind everything. */
+.app::before {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 7vh;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.45;
+  background:
+    radial-gradient(38% 100% at 12% 100%, #e9f2f9 0 70%, transparent 71%),
+    radial-gradient(30% 75% at 46% 100%, #dbe8f3 0 70%, transparent 71%),
+    radial-gradient(40% 95% at 86% 100%, #eef5fa 0 70%, transparent 71%);
+}
+body[data-phase="endgame"] .app::before {
+  opacity: 0.35;
+}
+.overlay__panel:focus-visible {
+  outline: none;
 }
