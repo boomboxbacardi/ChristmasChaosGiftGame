@@ -20,6 +20,7 @@ type Props = SeatState & {
   emptyLabel?: string;
   badge?: string;
   showGifts?: boolean;
+  isLeader?: boolean;
 };
 
 /** Memoised: the table re-renders on every dice hop, but seats rarely change. */
@@ -39,7 +40,9 @@ export const Seat = memo(
     isInvolved,
     isStarter,
     isDimmed,
+    isLeader,
   }: Props) => {
+    const label = delta ? (delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`) : "";
     const classes = [
       "seat",
       isActive && "seat--active",
@@ -47,6 +50,8 @@ export const Seat = memo(
       isInvolved && "seat--involved",
       isStarter && "seat--starter",
       isDimmed && "seat--dimmed",
+      delta && delta > 0 && "seat--gain",
+      delta && delta < 0 && "seat--loss",
     ]
       .filter(Boolean)
       .join(" ");
@@ -58,16 +63,36 @@ export const Seat = memo(
               🎲
             </span>
           )}
+          {isLeader && !isActive && (
+            <span className="seat__leader" aria-hidden="true">
+              👑
+            </span>
+          )}
           <Avatar name={name} />
+          {showGifts && packages.length > 0 && (
+            <span key={packages.length} className="seat__count">
+              {packages.length}
+            </span>
+          )}
           {delta ? (
-            <span key={deltaKey} className={`seat__delta ${delta > 0 ? "is-up" : "is-down"}`}>
-              {delta > 0 ? `+${delta}` : delta}
+            <span key={deltaKey} className="seat__fx" aria-hidden="true">
+              <span className="seat__shock" />
+              <span className="seat__shock seat__shock--late" />
+              <span className="seat__boom">{label}</span>
+            </span>
+          ) : null}
+          {delta ? (
+            <span
+              key={`pill-${deltaKey}`}
+              className={`seat__delta ${delta > 0 ? "is-up" : "is-down"}`}
+            >
+              {label}
             </span>
           ) : null}
           {badge ? <span className="seat__badge">{badge}</span> : null}
         </div>
         <span className="seat__name">{name}</span>
-        {showGifts && <GiftPile packages={packages} max={6} emptyLabel={emptyLabel} />}
+        {showGifts && <GiftPile packages={packages} max={5} emptyLabel={emptyLabel} />}
       </div>
     );
   },

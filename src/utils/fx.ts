@@ -1,7 +1,13 @@
 import type { FxKind } from "../types/game";
 
 /** Tiny event bus so the game hook can fire visual effects anywhere. */
-export type FxEvent = { kind: FxKind | "start" | "endgame" | "victory"; x?: number; y?: number };
+export type FxEvent = {
+  kind: FxKind | "start" | "endgame" | "victory" | "gain" | "loss";
+  x?: number;
+  y?: number;
+  /** Override the particle count. */
+  count?: number;
+};
 
 const FX_EVENT = "chaos-fx";
 

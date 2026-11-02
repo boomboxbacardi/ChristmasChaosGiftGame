@@ -9,13 +9,13 @@ import { leftOf, oppositeOf, rightOf, seatAt } from "./seating";
  */
 export type WildId =
   | "seatSwap"
-  | "blizzard"
+  | "avalanche"
   | "jackpot"
   | "blindfold"
   | "hotPotato"
-  | "encore"
+  | "masterThief"
   | "thaw"
-  | "fruitSalad";
+  | "robinHood";
 
 export type Wildcard = {
   id: WildId;
@@ -30,10 +30,14 @@ const hasUnlocked = (p: Player) => p.packages.some((pkg) => !pkg.locked);
 export const WILDCARDS: Wildcard[] = [
   { id: "seatSwap", emoji: "💺", weight: 1, possible: (_ph, p) => p.length >= 4 },
   {
-    id: "blizzard",
-    emoji: "🌨️",
+    id: "avalanche",
+    emoji: "🏔️",
     weight: 1,
-    possible: (_ph, p) => p.filter(hasUnlocked).length >= 2,
+    possible: (_ph, p, actor) =>
+      p.length >= 4 &&
+      avalancheChain(actor, p.length)
+        .slice(1)
+        .every((i) => i !== actor && hasUnlocked(p[i])),
   },
   {
     id: "jackpot",
@@ -53,7 +57,12 @@ export const WILDCARDS: Wildcard[] = [
     weight: 1,
     possible: (_ph, p, actor) => p.length >= 3 && hasUnlocked(p[actor]),
   },
-  { id: "encore", emoji: "🔁", weight: 0.8, possible: () => true },
+  {
+    id: "masterThief",
+    emoji: "🦹",
+    weight: 1,
+    possible: (_ph, p, actor) => richestOther(p, actor) !== null,
+  },
   {
     id: "thaw",
     emoji: "🫠",
@@ -61,10 +70,10 @@ export const WILDCARDS: Wildcard[] = [
     possible: (ph, p) => ph === "endgame" && p.some((pl) => pl.packages.some((pkg) => pkg.locked)),
   },
   {
-    id: "fruitSalad",
-    emoji: "🥗",
+    id: "robinHood",
+    emoji: "🏹",
     weight: 1,
-    possible: (_ph, p) => p.length >= 4 && p.filter(hasUnlocked).length >= 2,
+    possible: (_ph, p) => p.length >= 3 && robinPair(p) !== null,
   },
 ];
 
@@ -72,6 +81,41 @@ export const wildcardById = (id: string) => WILDCARDS.find((w) => w.id === id);
 
 export const possibleWildcards = (phase: GamePhase, players: Player[], actor: number) =>
   WILDCARDS.filter((w) => w.possible(phase, players, actor));
+
+/**
+ * Robin Hood: the richest guest (with something stealable) and the poorest guest.
+ * Ties are broken at random so it's never the same pair by default.
+ */
+export const robinPair = (players: Player[]): [number, number] | null => {
+  const order = players.map((_, i) => i).sort(() => Math.random() - 0.5);
+  const rich = order
+    .filter((i) => hasUnlocked(players[i]))
+    .sort((a, b) => players[b].packages.length - players[a].packages.length)[0];
+  if (rich === undefined) return null;
+  const poor = order.sort((a, b) => players[a].packages.length - players[b].packages.length)[0];
+  if (players[rich].packages.length - players[poor].packages.length < 2) return null;
+  return [rich, poor];
+};
+
+/** The guest (other than the actor) with the most stealable gifts; ties at random. */
+export const richestOther = (players: Player[], actor: number): number | null => {
+  const pool = players
+    .map((_, i) => i)
+    .filter((i) => i !== actor && hasUnlocked(players[i]))
+    .sort(() => Math.random() - 0.5)
+    .sort((a, b) => players[b].packages.length - players[a].packages.length);
+  return pool[0] ?? null;
+};
+
+/** Avalanche: actor -> across -> their left -> across again. Three steals, one after another. */
+export const avalancheChain = (actor: number, count: number) => {
+  const a = oppositeOf(actor, count);
+  const b = leftOf(a, count);
+  // With an odd table the seat across from b is the actor again; take the actor's right instead.
+  const across = oppositeOf(b, count);
+  const c = across === actor ? rightOf(actor, count) : across;
+  return [actor, a, b, c];
+};
 
 const pickRandom = <T>(items: T[]): T | undefined =>
   items.length ? items[Math.floor(Math.random() * items.length)] : undefined;
@@ -85,14 +129,15 @@ const moveOne = (from: Player, to: Player) => {
 };
 
 /** Hot potato distance: at least 3 seats, at most twice round the table. */
-export const potatoSteps = (count: number) => 3 + Math.floor(Math.random() * Math.max(1, count * 2 - 2));
+export const potatoSteps = (count: number) =>
+  3 + Math.floor(Math.random() * Math.max(1, count * 2 - 2));
 
 export const applyWildcard = (
   id: WildId,
   roster: Player[],
   pile: number,
   actorIdx: number,
-  targets: ActionTargets
+  targets: ActionTargets,
 ): ActionOutcome | null => {
   const players = clonePlayers(roster);
   const actor = players[actorIdx];
@@ -111,14 +156,26 @@ export const applyWildcard = (
       [players[a], players[b]] = [players[b], players[a]];
       return { ...base, ...msg(params), fx: "rotate", seats: [a, b], reseated: true };
     }
-    case "blizzard": {
-      // Everyone's unfrozen gifts into the middle, dealt back one at a time from the actor.
-      const pool = players.flatMap(unlockedOf);
-      for (const p of players) p.packages = p.packages.filter((pkg) => pkg.locked);
-      pool.forEach((gift, i) => {
-        players[(actorIdx + i) % count].packages.push(gift);
-      });
-      return { ...base, ...msg({ actor: actor.name, count: pool.length }), fx: "rotate" };
+    case "avalanche": {
+      // A chain of steals rolling across the table, one at a time:
+      // each robbed guest immediately robs the next one in the chain.
+      const chain = avalancheChain(actorIdx, count);
+      const links: NonNullable<ActionOutcome["links"]> = [];
+      for (let i = 0; i < chain.length - 1; i += 1) {
+        const thief = chain[i];
+        const victim = chain[i + 1];
+        if (thief === victim || !moveOne(players[victim], players[thief])) break;
+        links.push({ from: thief, to: victim, kind: "steal" });
+      }
+      if (!links.length) return null;
+      const names = chain.map((idx) => players[idx].name);
+      return {
+        ...base,
+        ...msg({ actor: names[0], a: names[1], b: names[2], c: names[3] }),
+        fx: "steal",
+        seats: chain.slice(0, links.length + 1),
+        links,
+      };
     }
     case "jackpot": {
       const winIdx = targets.target ?? actorIdx;
@@ -166,8 +223,17 @@ export const applyWildcard = (
         steps,
       };
     }
-    case "encore":
-      return { ...base, ...msg({ actor: actor.name }), fx: "grab", extraRoll: true };
+    case "masterThief": {
+      const t = richestOther(players, actorIdx);
+      if (t === null || !moveOne(players[t], actor)) return null;
+      return {
+        ...base,
+        ...msg({ actor: actor.name, target: players[t].name }),
+        fx: "steal",
+        seats: [actorIdx, t],
+        links: [{ from: actorIdx, to: t, kind: "steal" }],
+      };
+    }
     case "thaw": {
       let thawed = 0;
       for (const p of players) {
@@ -178,29 +244,18 @@ export const applyWildcard = (
       }
       return { ...base, ...msg({ count: thawed }), fx: "freeze" };
     }
-    case "fruitSalad": {
-      // Everyone swaps one gift with the person straight across, all at once.
-      const half = Math.floor(count / 2);
-      const links: ActionOutcome["links"] = [];
-      for (let i = 0; i < half; i += 1) {
-        const j = oppositeOf(i, count);
-        const a = players[i];
-        const b = players[j];
-        const ga = pickRandom(unlockedOf(a));
-        const gb = pickRandom(unlockedOf(b));
-        if (ga && gb) {
-          a.packages = [...a.packages.filter((p) => p.id !== ga.id), gb];
-          b.packages = [...b.packages.filter((p) => p.id !== gb.id), ga];
-          links.push({ from: i, to: j, kind: "swap" });
-        } else if (ga || gb) {
-          // Empty-handed across the table? You take without giving.
-          const [from, to] = ga ? [i, j] : [j, i];
-          moveOne(players[from], players[to]);
-          links.push({ from: to, to: from, kind: "steal" });
-        }
-      }
-      if (!links.length) return null;
-      return { ...base, ...msg({}), fx: "swap", seats: [], links };
+    case "robinHood": {
+      const pair = robinPair(players);
+      if (!pair) return null;
+      const [rich, poor] = pair;
+      if (!moveOne(players[rich], players[poor])) return null;
+      return {
+        ...base,
+        ...msg({ rich: players[rich].name, poor: players[poor].name }),
+        fx: "give",
+        seats: [rich, poor],
+        links: [{ from: rich, to: poor, kind: "give" }],
+      };
     }
     default:
       return null;

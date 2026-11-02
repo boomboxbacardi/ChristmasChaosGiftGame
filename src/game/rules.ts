@@ -29,13 +29,22 @@ const unlockedCount = (p: Player) => p.packages.filter((pkg) => !pkg.locked).len
  * How likely each action is. Tuned with `pnpm simulate` so a table of 15 with
  * 30 gifts ends with everyone holding something and nobody hoarding.
  */
-export const rollWeight = (phase: GamePhase, roll: number, actor: Player, pile: number) => {
+export const rollWeight = (
+  phase: GamePhase,
+  roll: number,
+  actor: Player,
+  pile: number,
+  /** Gifts left in the pile per warmup roll left; above ~0.7 the pile is falling behind. */
+  pressure = 0
+) => {
   const held = actor.packages.length;
   if (roll === WILD_ROLL) return 1.1;
   if (phase === "warmup") {
+    // The pile must be empty when the warmup rolls run out, so draws get likelier as it lags behind.
+    const boost = 1 + Math.max(0, pressure - 0.5) * 6;
     // Greedy grabs keep it spicy, but hoarders grab less and empty hands grab more.
-    if (roll === 1) return pile >= 2 ? (held >= 4 ? 0.6 : 1.6) : 0;
-    if (roll === 2) return held === 0 ? 3 : held >= 4 ? 1 : 2;
+    if (roll === 1) return pile >= 2 ? (held >= 4 ? 0.6 : 1.6) * boost : 0;
+    if (roll === 2) return pile >= 1 ? (held === 0 ? 3 : held >= 4 ? 1 : 2) * boost : 0;
     if (roll === 3) return held >= 4 ? 2 : 1;
     if (roll === 5 || roll === 6) return 0.85;
     return 1;
@@ -104,26 +113,54 @@ export const targetOptions = (
   return null;
 };
 
+/** Warmup rolls still to be taken around the table, this one included. */
+export const warmupRollsLeft = (state: GameState) =>
+  state.phase === "warmup" ? Object.values(state.rolls).reduce((sum, v) => sum + v, 0) : 0;
+
+/**
+ * Gifts this roll MUST take from the pile so the pile can still be emptied
+ * within everyone's warmup rolls (a draw takes at most 2). Guarantees phase 1
+ * never needs an extra round.
+ */
+export const pileQuota = (state: GameState) => {
+  if (state.phase !== "warmup" || state.pile <= 0) return 0;
+  const left = Math.max(1, warmupRollsLeft(state));
+  return Math.max(0, Math.min(2, state.pile - 2 * (left - 1)));
+};
+
+const pressureOf = (state: GameState) =>
+  state.phase === "warmup" ? state.pile / Math.max(1, warmupRollsLeft(state)) : 0;
+
 /** Actions that may be rolled right now. */
 export const availableRolls = (state: GameState) => {
   const actor = state.players[state.current];
   const table = getPhaseTable(state.phase);
-  return Object.keys(table)
+  const quota = pileQuota(state);
+  const pressure = pressureOf(state);
+  const rolls = Object.keys(table)
     .map(Number)
     .filter((r) => {
       const req = table[r].requires;
       return (
         (!req || req(state.current, state.players, state.pile)) &&
-        rollWeight(state.phase, r, actor, state.pile) > 0
+        rollWeight(state.phase, r, actor, state.pile, pressure) > 0
       );
     });
+  // Running out of rolls: only pile draws that take enough are allowed.
+  if (quota >= 2 && rolls.includes(1)) return [1];
+  if (quota >= 1) {
+    const draws = rolls.filter((r) => r === 1 || r === 2);
+    if (draws.length) return draws;
+  }
+  return rolls;
 };
 
 export const pickRoll = (state: GameState, available = availableRolls(state)) => {
   if (!available.length) return 0;
   const actor = state.players[state.current];
+  const pressure = pressureOf(state);
   return available[
-    pickWeighted(available.map((r) => rollWeight(state.phase, r, actor, state.pile)))
+    pickWeighted(available.map((r) => rollWeight(state.phase, r, actor, state.pile, pressure)))
   ];
 };
 
@@ -253,7 +290,14 @@ export const simulateGame = (playerCount: number, pile: number) => {
   let state = newGameState(names, pile, Math.floor(Math.random() * playerCount));
   let turns = 0;
   const rollCounts: Record<string, number> = {};
+  let warmupTurns = 0;
+  let forced = 0;
+  let extraRound = false;
   while (state.phase !== "ended" && turns < 2000) {
+    if (state.phase === "warmup") {
+      warmupTurns += 1;
+      if (pileQuota(state) > 0) forced += 1;
+    }
     const roll = pickRoll(state);
     const wild = roll === WILD_ROLL ? pickWild(state.phase, state.players, state.current) : undefined;
     const { targets } = pickTargets(
@@ -261,7 +305,9 @@ export const simulateGame = (playerCount: number, pile: number) => {
     );
     if (wild) rollCounts[`wild.${wild}`] = (rollCounts[`wild.${wild}`] ?? 0) + 1;
     rollCounts[`${state.phase}.${roll}`] = (rollCounts[`${state.phase}.${roll}`] ?? 0) + 1;
-    state = resolveTurn(state, roll, { ...targets, wild }).state;
+    const turn = resolveTurn(state, roll, { ...targets, wild });
+    if (turn.log.some((m) => m.key === "log.extraRound")) extraRound = true;
+    state = turn.state;
     turns += 1;
   }
   const beforeMiracle = state.players.map((p) => p.packages.length);
@@ -272,5 +318,8 @@ export const simulateGame = (playerCount: number, pile: number) => {
     final: miracle.players.map((p) => p.packages.length),
     miracles: miracle.transfers.length,
     rollCounts,
+    warmupTurns,
+    forced,
+    extraRound,
   };
 };

@@ -17,10 +17,16 @@ let minSum = 0;
 let turns = 0;
 const maxHist = new Map<number, number>();
 const rolls: Record<string, number> = {};
+let extraRounds = 0;
+let forcedTotal = 0;
+let warmupMax = 0;
 
 for (let g = 0; g < games; g += 1) {
   const r = simulateGame(players, gifts);
   turns += r.turns;
+  if (r.extraRound) extraRounds += 1;
+  forcedTotal += r.forced;
+  warmupMax = Math.max(warmupMax, r.warmupTurns);
   const sum = r.final.reduce((a, b) => a + b, 0);
   if (sum !== gifts) throw new Error(`Gift count drifted: ${sum} != ${gifts}`);
   const empties = r.beforeMiracle.filter((c) => c === 0).length;
@@ -38,6 +44,8 @@ for (let g = 0; g < games; g += 1) {
 
 console.log(`\n${games} games · ${players} players · ${gifts} gifts`);
 console.log(`avg turns/game: ${(turns / games).toFixed(1)}`);
+console.log(`phase 1: pile NOT empty after everyone's rolls (extra round): ${pct(extraRounds)} · longest phase 1: ${warmupMax} rolls (limit ${players * 3})`);
+console.log(`phase 1: avg forced pile draws per game: ${(forcedTotal / games).toFixed(2)}`);
 console.log(`games where someone ended empty before the miracle: ${pct(emptyGames)} (avg ${(emptyPlayers / games).toFixed(2)} players)`);
 console.log(`games that needed the Christmas Miracle: ${pct(miracleGames)}`);
 console.log(`avg min/max per game: ${(minSum / games).toFixed(2)} / ${(maxSum / games).toFixed(2)} · worst hoard: ${maxSeen}`);
