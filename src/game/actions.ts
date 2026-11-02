@@ -56,7 +56,7 @@ const passOneGift = (
   players: Player[],
   dir: Direction,
   steps: number,
-  pick: (unlocked: Package[]) => Package | undefined
+  pick: (unlocked: Package[]) => Package | undefined,
 ) => {
   const next = clonePlayers(players);
   const outgoing = next.map((p) => pick(unlockedOf(p)));
@@ -112,6 +112,45 @@ const swapAll = (a: Player, b: Player) => {
   return mine.length + theirs.length > 0;
 };
 
+/**
+ * Big tables get bigger endgame moments: about one extra player per five at
+ * the table (15 guests = 3 people act, 8 guests = 1). Done one after another.
+ */
+export const crewSize = (count: number) => Math.max(1, Math.floor(count / 5));
+
+/** The actor first, then random co-actors that pass the filter. */
+const pickCrew = (
+  players: Player[],
+  actorIdx: number,
+  filter: (p: Player) => boolean,
+  poorFirst = false,
+) => {
+  const others = players
+    .map((_, i) => i)
+    .filter((i) => i !== actorIdx && filter(players[i]))
+    .sort(() => Math.random() - 0.5);
+  if (poorFirst) others.sort((a, b) => players[a].packages.length - players[b].packages.length);
+  return [actorIdx, ...others].slice(0, crewSize(players.length));
+};
+
+/** A random receiver, leaning towards whoever has the fewest gifts. */
+const pickPoorer = (players: Player[], exclude: number[]) => {
+  const pool = players.map((_, i) => i).filter((i) => !exclude.includes(i));
+  if (!pool.length) return undefined;
+  const most = Math.max(...pool.map((i) => players[i].packages.length));
+  const weights = pool.map((i) => (most - players[i].packages.length + 1) ** 2);
+  let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+  for (let k = 0; k < pool.length; k += 1) {
+    r -= weights[k];
+    if (r <= 0) return pool[k];
+  }
+  return pool[pool.length - 1];
+};
+
+/** "Noel + Frost + Stella": works in every language. */
+const nameList = (players: Player[], seats: number[]) =>
+  seats.map((i) => players[i].name).join(", ");
+
 const calm = (players: Player[], pile: number, actor: number): ActionOutcome => ({
   players,
   pile,
@@ -145,7 +184,7 @@ export const rollExtras = (
   roll: number,
   players: Player[],
   actor: number,
-  wild?: WildId
+  wild?: WildId,
 ): ActionTargets => {
   if (roll === WILD_ROLL && wild === "hotPotato") return { steps: potatoSteps(players.length) };
   if (phase === "warmup" && (roll === 5 || roll === 6)) {
@@ -172,7 +211,7 @@ export const applyWarmupRoll = (
   roster: Player[],
   pile: number,
   actorIdx: number,
-  targets: ActionTargets = {}
+  targets: ActionTargets = {},
 ): ActionOutcome => {
   const players = clonePlayers(roster);
   const actor = players[actorIdx];
@@ -197,8 +236,7 @@ export const applyWarmupRoll = (
     const filter = roll === 4 ? hasUnlocked : undefined;
     const targetIdx = targets.target ?? pickRandom(otherSeats(players, actorIdx, filter));
     const target = targetIdx !== undefined ? players[targetIdx] : undefined;
-    const ok =
-      target && (roll === 3 ? moveOne(actor, target) : moveOne(target, actor));
+    const ok = target && (roll === 3 ? moveOne(actor, target) : moveOne(target, actor));
     if (!target || targetIdx === undefined || !ok) return calm(players, pile, actorIdx);
     const params = { actor: name, target: target.name };
     return {
@@ -217,7 +255,7 @@ export const applyWarmupRoll = (
     const direction: Direction = roll === 5 ? "right" : "left";
     const steps = targets.steps ?? 1;
     const next = passOneGift(players, direction, steps, (unlocked) =>
-      roll === 5 ? unlocked[0] : unlocked[unlocked.length - 1]
+      roll === 5 ? unlocked[0] : unlocked[unlocked.length - 1],
     );
     const params = stepsParams(steps, direction);
     return {
@@ -273,26 +311,90 @@ export const applyEndgameRoll = (
   roster: Player[],
   pile: number,
   actorIdx: number,
-  targets: ActionTargets = {}
+  targets: ActionTargets = {},
 ): ActionOutcome => {
   const players = clonePlayers(roster);
   const actor = players[actorIdx];
   const name = actor.name;
 
   if (roll === 1) {
-    const pick = pickRandom(unlockedOf(actor));
-    if (!pick) return calm(players, pile, actorIdx);
-    actor.packages = actor.packages.map((pkg) =>
-      pkg.id === pick.id ? { ...pkg, locked: true } : pkg
-    );
-    const params = { actor: name };
+    if (!hasUnlocked(actor)) return calm(players, pile, actorIdx);
+    // Co-freezers are the guests with the fewest gifts: protecting the poor keeps everyone in the game.
+    const crew = pickCrew(players, actorIdx, hasUnlocked, true);
+    for (const idx of crew) {
+      const pick = pickRandom(unlockedOf(players[idx]));
+      if (!pick) continue;
+      players[idx].packages = players[idx].packages.map((pkg) =>
+        pkg.id === pick.id ? { ...pkg, locked: true } : pkg,
+      );
+    }
+    const many = crew.length > 1;
+    const params = { actor: name, list: nameList(players, crew) };
     return {
       players,
       pile,
-      log: [{ key: "log.endgame.1", params }],
-      narrative: { key: "narr.endgame.1", params },
+      log: [{ key: many ? "log.endgame.1.many" : "log.endgame.1", params }],
+      narrative: { key: many ? "narr.endgame.1.many" : "narr.endgame.1", params },
       fx: "freeze",
-      seats: [actorIdx],
+      seats: crew,
+    };
+  }
+
+  // Trash trade and Santa's hand: the actor plus co-actors, each with their own partner.
+  if ((roll === 3 || roll === 5) && crewSize(players.length) > 1) {
+    const firstTarget = targets.target ?? pickRandom(otherSeats(players, actorIdx));
+    if (firstTarget === undefined) return calm(players, pile, actorIdx);
+    const crew = pickCrew(
+      players,
+      actorIdx,
+      // Co-givers must keep at least one gift; co-traders need something to trade.
+      roll === 5 ? (p) => hasUnlocked(p) && p.packages.length >= 2 : hasUnlocked,
+    ).filter((i) => i !== firstTarget);
+    const busy = new Set<number>([actorIdx, firstTarget, ...crew]);
+    const pairs: [number, number][] = [];
+    for (const idx of crew) {
+      let partner: number | undefined = idx === actorIdx ? firstTarget : undefined;
+      if (partner === undefined) {
+        partner =
+          roll === 5
+            ? pickPoorer(players, [...busy])
+            : pickRandom(
+                players.map((_, i) => i).filter((i) => !busy.has(i) && hasUnlocked(players[i])),
+              );
+      }
+      if (partner === undefined) continue;
+      busy.add(partner);
+      const ok =
+        roll === 3
+          ? swapOne(players[idx], players[partner])
+          : moveOne(players[idx], players[partner]);
+      if (ok) pairs.push([idx, partner]);
+    }
+    if (!pairs.length) return calm(players, pile, actorIdx);
+    const kind = roll === 5 ? "give" : "swap";
+    const arrow = roll === 5 ? " → " : " ↔ ";
+    const params = {
+      actor: name,
+      count: pairs.length,
+      list: pairs.map(([a, b]) => `${players[a].name}${arrow}${players[b].name}`).join(", "),
+    };
+    const many = pairs.length > 1;
+    return {
+      players,
+      pile,
+      log: [
+        {
+          key: many ? `log.endgame.${roll}.many` : `log.endgame.${roll}`,
+          params: { ...params, target: players[pairs[0][1]].name },
+        },
+      ],
+      narrative: {
+        key: many ? `narr.endgame.${roll}.many` : `narr.endgame.${roll}`,
+        params: { ...params, target: players[pairs[0][1]].name },
+      },
+      fx: kind,
+      seats: [...new Set(pairs.flat())],
+      links: pairs.map(([from, to]) => ({ from, to, kind })),
     };
   }
 
@@ -303,7 +405,11 @@ export const applyEndgameRoll = (
     if (!target || targetIdx === undefined) return calm(players, pile, actorIdx);
 
     const ok =
-      roll === 2 ? swapAll(actor, target) : roll === 3 ? swapOne(actor, target) : moveOne(actor, target);
+      roll === 2
+        ? swapAll(actor, target)
+        : roll === 3
+          ? swapOne(actor, target)
+          : moveOne(actor, target);
     if (!ok) return calm(players, pile, actorIdx);
 
     const params = { actor: name, target: target.name };
@@ -366,12 +472,16 @@ export const applyEndgameRoll = (
     const maxUnlocked = Math.max(...unlockedCounts);
     const minTotal = Math.min(...totals);
     const richIdx = pickRandom(
-      players.map((_, i) => i).filter((i) => unlockedCounts[i] === maxUnlocked && maxUnlocked > 0)
+      players.map((_, i) => i).filter((i) => unlockedCounts[i] === maxUnlocked && maxUnlocked > 0),
     );
     const poorIdx = pickRandom(
-      players.map((_, i) => i).filter((i) => totals[i] === minTotal && i !== richIdx)
+      players.map((_, i) => i).filter((i) => totals[i] === minTotal && i !== richIdx),
     );
-    if (richIdx === undefined || poorIdx === undefined || !moveOne(players[richIdx], players[poorIdx])) {
+    if (
+      richIdx === undefined ||
+      poorIdx === undefined ||
+      !moveOne(players[richIdx], players[poorIdx])
+    ) {
       return calm(players, pile, actorIdx);
     }
     const params = { actor: name, rich: players[richIdx].name, poor: players[poorIdx].name };
@@ -410,16 +520,16 @@ export const applyRoll = (
   roster: Player[],
   pile: number,
   actorIdx: number,
-  targets?: ActionTargets
+  targets?: ActionTargets,
 ) =>
   roll === 0
     ? calm(clonePlayers(roster), pile, actorIdx)
     : roll === WILD_ROLL
-      ? ((targets?.wild && applyWildcard(targets.wild, roster, pile, actorIdx, targets)) ||
-        calm(clonePlayers(roster), pile, actorIdx))
+      ? (targets?.wild && applyWildcard(targets.wild, roster, pile, actorIdx, targets)) ||
+        calm(clonePlayers(roster), pile, actorIdx)
       : phase === "warmup"
-      ? applyWarmupRoll(roll, roster, pile, actorIdx, targets)
-      : applyEndgameRoll(roll, roster, pile, actorIdx, targets);
+        ? applyWarmupRoll(roll, roster, pile, actorIdx, targets)
+        : applyEndgameRoll(roll, roster, pile, actorIdx, targets);
 
 /**
  * Christmas Miracle: after the last roll, everyone empty-handed takes one gift
@@ -434,7 +544,8 @@ export const christmasMiracle = (roster: Player[]) => {
     const score = (p: Player) => unlockedOf(p).length * 100 + p.packages.length;
     let richIdx = -1;
     players.forEach((p, i) => {
-      if (p.packages.length >= 2 && (richIdx === -1 || score(p) > score(players[richIdx]))) richIdx = i;
+      if (p.packages.length >= 2 && (richIdx === -1 || score(p) > score(players[richIdx])))
+        richIdx = i;
     });
     if (richIdx === -1) break;
     const rich = players[richIdx];
