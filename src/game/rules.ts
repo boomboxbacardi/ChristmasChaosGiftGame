@@ -78,7 +78,7 @@ export const targetOptions = (
   const fromRich = (p: Player) => p.packages.length ** 1.5;
 
   if (roll === WILD_ROLL) {
-    if (wild === "blindfold") return single(others.filter(({ p }) => hasUnlocked(p)), fromRich);
+    if (wild === "mistletoe") return single(others.filter(({ p }) => hasUnlocked(p)), () => 1);
     if (wild === "jackpot") return single(players.map((p, idx) => ({ p, idx })), () => 1);
     if (wild === "seatSwap") {
       const options: number[][] = [];
