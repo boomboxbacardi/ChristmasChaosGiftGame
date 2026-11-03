@@ -18,24 +18,24 @@ type Particle = {
 type Flake = { x: number; y: number; r: number; speed: number; drift: number; phase: number };
 
 const PALETTES: Record<string, string[]> = {
-  default: ["#ff2e63", "#ffd23f", "#2ee6a6", "#7fdcff", "#ffffff", "#ff8a00"],
+  default: ["#e8283f", "#ffcf4a", "#3fd98a", "#ffffff", "#ffffff", "#1f8a4c"],
   freeze: ["#7fdcff", "#c9f3ff", "#ffffff", "#4fb6ff"],
   steal: ["#ff2e63", "#ff004c", "#2b0a1a", "#ffd23f"],
   endgame: ["#ff4d00", "#ff2e63", "#ffd23f", "#ff8a00"],
-  gain: ["#ffd23f", "#2ee6a6", "#ffffff", "#fff3b0", "#7fdcff"],
+  gain: ["#ffcf4a", "#3fd98a", "#ffffff", "#fff3b0", "#e8283f"],
   loss: ["#ff2e4d", "#ff004c", "#ff8a9a", "#6a0418"],
 };
 
 const GLYPHS: Record<string, string[]> = {
   grab: ["🎁", "✨"],
-  start: ["🎁", "🎄", "⭐"],
-  victory: ["🎉", "🎁", "🥳", "⭐"],
+  start: ["🎁", "🎄", "⭐", "❄️"],
+  victory: ["🎉", "🎁", "🎄", "⭐", "🎅"],
   steal: ["🥷", "💸"],
   freeze: ["❄️", "🧊"],
   endgame: ["🔥", "💥"],
   give: ["🎁"],
   swap: ["🔄", "🎁"],
-  gain: ["🎁", "✨", "⭐"],
+  gain: ["🎁", "✨", "⭐", "🍬"],
   loss: ["💸", "💔"],
 };
 
@@ -89,10 +89,10 @@ export const FxLayer = () => {
 
     let flakes: Flake[] = reduced
       ? []
-      : Array.from({ length: Math.min(70, Math.round(width / 20)) }, () => ({
+      : Array.from({ length: Math.min(110, Math.round(width / 14)) }, () => ({
           x: Math.random() * width,
           y: Math.random() * height,
-          r: 0.8 + Math.random() * 2.6,
+          r: 0.8 + Math.random() * 3.2,
           speed: 0.3 + Math.random() * 1.1,
           drift: 0.2 + Math.random() * 0.8,
           phase: Math.random() * Math.PI * 2,

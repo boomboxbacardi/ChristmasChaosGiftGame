@@ -1,25 +1,27 @@
 :root {
-  --bg: #0b0322;
-  --bg-2: #1a0638;
-  --ink: #fff8ee;
-  --ink-soft: #e6dcff;
-  --muted: #b9a8de;
-  --red: #ff2e4d;
-  --red-deep: #b5002a;
-  --gold: #ffd23f;
-  --gold-deep: #e09a00;
-  --mint: #2ee6a6;
-  --pine: #0d5c3a;
-  --ice: #7fdcff;
-  --pink: #ff4fd8;
-  --orange: #ff7a00;
-  --panel: rgba(30, 12, 64, 0.72);
-  --panel-strong: rgba(42, 16, 86, 0.9);
-  --panel-border: rgba(255, 255, 255, 0.14);
-  --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  --bg: #0a1f18;
+  --bg-2: #0f2e22;
+  --ink: #fff8ec;
+  --ink-soft: #f6e8cf;
+  --muted: #cdbb9b;
+  --red: #e8283f;
+  --red-deep: #9e0f22;
+  --gold: #ffcf4a;
+  --gold-deep: #c98a12;
+  --mint: #3fd98a;
+  --pine: #0f5132;
+  --ice: #a8e4ff;
+  --pink: #ff6b8b;
+  --orange: #ff8a1f;
+  --cream: #fff4dc;
+  --panel: rgba(14, 42, 30, 0.84);
+  --panel-strong: rgba(16, 48, 34, 0.96);
+  --panel-border: rgba(255, 207, 74, 0.3);
+  --shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   --radius: 22px;
-  --font-display: "Bungee", "Impact", "Arial Black", system-ui, sans-serif;
-  --font-body: "Outfit", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Lilita One", "Arial Black", system-ui, sans-serif;
+  --font-festive: "Mountains of Christmas", "Lilita One", cursive;
+  --font-body: "Nunito", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   font-family: var(--font-body);
   line-height: 1.45;
@@ -57,29 +59,33 @@ body::after {
   transform: translateZ(0);
   transition: opacity 600ms ease;
 }
+/* A winter night: cold sky on top, warm candle/fireplace glow from below. */
 body::before {
   background-image:
-    radial-gradient(1200px 700px at 8% -10%, rgba(255, 46, 77, 0.42), transparent 60%),
-    radial-gradient(900px 700px at 105% 10%, rgba(255, 79, 216, 0.28), transparent 60%),
-    radial-gradient(1000px 800px at 80% 115%, rgba(46, 230, 166, 0.22), transparent 60%),
-    radial-gradient(800px 600px at 0% 100%, rgba(127, 220, 255, 0.18), transparent 60%),
-    linear-gradient(180deg, #1a0638, #0b0322);
+    radial-gradient(1300px 520px at 50% 112%, rgba(255, 150, 50, 0.38), transparent 65%),
+    radial-gradient(900px 600px at -5% -10%, rgba(232, 40, 63, 0.34), transparent 60%),
+    radial-gradient(900px 600px at 105% -5%, rgba(63, 217, 138, 0.2), transparent 60%),
+    radial-gradient(2px 2px at 12% 18%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(2px 2px at 34% 8%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(2px 2px at 61% 14%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(2px 2px at 83% 22%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(2px 2px at 92% 6%, rgba(255, 255, 255, 0.65), transparent),
+    linear-gradient(180deg, #0b1d33 0%, #0b2a1f 52%, #1e100b 100%);
 }
+/* Endgame: the fireplace roars. */
 body::after {
   opacity: 0;
   background-image:
-    radial-gradient(1100px 700px at 10% -10%, rgba(255, 122, 0, 0.55), transparent 60%),
-    radial-gradient(900px 700px at 110% 0%, rgba(255, 46, 77, 0.5), transparent 60%),
-    radial-gradient(1000px 700px at 50% 120%, rgba(255, 210, 63, 0.32), transparent 60%),
-    linear-gradient(180deg, #3a0610, #1d0207);
+    radial-gradient(1300px 650px at 50% 115%, rgba(255, 122, 0, 0.6), transparent 62%),
+    radial-gradient(900px 700px at -5% 0%, rgba(232, 40, 63, 0.45), transparent 60%),
+    radial-gradient(900px 700px at 105% 0%, rgba(255, 207, 74, 0.25), transparent 60%),
+    linear-gradient(180deg, #2a0710, #1a0405);
 }
 body[data-phase="endgame"] {
-  --bg: #1d0207;
-  --bg-2: #3a0610;
+  --bg: #1a0405;
+  --bg-2: #2a0710;
 }
-body[data-phase="endgame"]::after {
-  opacity: 1;
-}
+/* The endgame glow over the night scene lives in WinterScene (.winter__fire). */
 
 button,
 input {

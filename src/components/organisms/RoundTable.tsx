@@ -27,9 +27,9 @@ type Props = {
 
 const RADIUS = 40;
 const BULBS = 28;
-const BULB_COLORS = ["#ff2e4d", "#ffd23f", "#2ee6a6", "#7fdcff"];
+const BULB_COLORS = ["#ff3b4f", "#ffcf4a", "#fff4dc", "#6cc8ff"];
 
-/** Fairy lights strung around the table edge, split in two sets that twinkle in turn. */
+/** Fairy lights wound into the pine wreath around the table, split in two sets that twinkle in turn. */
 const bulbs = Array.from({ length: BULBS }, (_, i) => {
   const rad = ((360 / BULBS) * i * Math.PI) / 180;
   return {
@@ -245,6 +245,7 @@ export const RoundTable = ({
           )}
         </div>
       </div>
+      <div className="round-table__wreath" aria-hidden="true" />
       <BulbSet odd={false} />
       <BulbSet odd />
       {links.length > 0 && count > 1 && (
