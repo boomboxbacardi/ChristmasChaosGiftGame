@@ -11,7 +11,7 @@ export type WildId =
   | "seatSwap"
   | "avalanche"
   | "jackpot"
-  | "blindfold"
+  | "mistletoe"
   | "hotPotato"
   | "masterThief"
   | "thaw"
@@ -46,10 +46,11 @@ export const WILDCARDS: Wildcard[] = [
     possible: (_ph, p) => p.length >= 3 && p.some(hasUnlocked),
   },
   {
-    id: "blindfold",
-    emoji: "🙈",
+    id: "mistletoe",
+    emoji: "🌿",
     weight: 1,
-    possible: (_ph, p, actor) => p.some((pl, i) => i !== actor && hasUnlocked(pl)),
+    possible: (_ph, p, actor) =>
+      hasUnlocked(p[actor]) && p.some((pl, i) => i !== actor && hasUnlocked(pl)),
   },
   {
     id: "hotPotato",
@@ -152,9 +153,36 @@ export const applyWildcard = (
     case "seatSwap": {
       const [a, b] = targets.pair ?? [];
       if (a === undefined || b === undefined || a === b) return null;
-      const params = { a: players[a].name, b: players[b].name };
-      [players[a], players[b]] = [players[b], players[a]];
-      return { ...base, ...msg(params), fx: "rotate", seats: [a, b], reseated: true };
+      // Bigger tables, more chairs: about one pair per five guests (15 = 3 pairs), moving one pair at a time.
+      const pairs: [number, number][] = [[a, b]];
+      const free = players
+        .map((_, i) => i)
+        .filter((i) => i !== a && i !== b)
+        .sort(() => Math.random() - 0.5);
+      while (pairs.length < Math.max(1, Math.floor(count / 5)) && free.length >= 2) {
+        pairs.push([free.pop() as number, free.pop() as number]);
+      }
+      const names = pairs.map(([x, y]) => [players[x].name, players[y].name]);
+      // The guests move, the gifts stay on the table: each takes over the other's pile.
+      for (const [x, y] of pairs) {
+        [players[x], players[y]] = [players[y], players[x]];
+        [players[x].packages, players[y].packages] = [players[y].packages, players[x].packages];
+      }
+      const params = {
+        a: names[0][0],
+        b: names[0][1],
+        count: pairs.length,
+        list: names.map(([x, y]) => `${x} ↔ ${y}`).join(", "),
+      };
+      const key = pairs.length > 1 ? "seatSwap.many" : "seatSwap";
+      return {
+        ...base,
+        log: [{ key: `log.wild.${key}`, params }],
+        narrative: { key: `narr.wild.${key}`, params },
+        fx: "rotate",
+        seats: pairs.flat(),
+        reseated: true,
+      };
     }
     case "avalanche": {
       // A chain of steals rolling across the table, one at a time:
@@ -195,15 +223,20 @@ export const applyWildcard = (
         ],
       };
     }
-    case "blindfold": {
+    case "mistletoe": {
+      // Caught under the mistletoe: actor and target trade one gift each, in plain sight.
       const t = targets.target;
-      if (t === undefined || !moveOne(players[t], actor)) return null;
+      if (t === undefined || t === actorIdx) return null;
+      const mine = pickRandom(unlockedOf(actor));
+      const theirs = pickRandom(unlockedOf(players[t]));
+      if (!mine || !theirs) return null;
+      actor.packages = [...actor.packages.filter((pkg) => pkg.id !== mine.id), theirs];
+      players[t].packages = [...players[t].packages.filter((pkg) => pkg.id !== theirs.id), mine];
       return {
         ...base,
         ...msg({ actor: actor.name, target: players[t].name }),
-        fx: "steal",
         seats: [actorIdx, t],
-        links: [{ from: actorIdx, to: t, kind: "steal" }],
+        links: [{ from: actorIdx, to: t, kind: "swap" }],
       };
     }
     case "hotPotato": {

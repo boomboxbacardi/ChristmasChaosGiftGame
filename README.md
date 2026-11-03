@@ -25,7 +25,7 @@ You know the classic dice gift game. Pile of presents in the middle, everybody r
 - 🔦 **A spotlight picks the victim.** Watch the table light up while it decides who you rob.
 - 🧊 **Freeze your favourite gift** before someone flips your whole hand.
 - 🔥 **Two phases:** a greedy warm-up, then an ENDGAME where the table literally catches fire.
-- ⭐ **Wildcards** with eight unhinged events: musical chairs, avalanches, blindfold heists, hot potatoes…
+- ⭐ **Wildcards** with eight unhinged events: musical chairs, avalanches, mistletoe trades, hot potatoes…
 - ↔️ **Chaos across the table**, not just next door: gifts jump to the person opposite, relay through three players, and travel up to three seats.
 - ⚖️ **Balanced for real parties.** Rich players get robbed more, gifts drift towards empty hands, and a Christmas Miracle makes sure nobody leaves with nothing.
 - 🏆 **Final standings and awards:** Gift Hoarder and Ice King.
@@ -80,10 +80,10 @@ The wildcard spins a second wheel of pure nonsense:
 
 | | Wildcard | What happens |
 |---|---|---|
-| 💺 | **Musical Chairs** | Two random players swap seats, gifts and all. New neighbours, new enemies. |
+| 💺 | **Musical Chairs** | Random pairs swap seats (about one pair per five guests), but the gifts stay put: you take over each other's pile. |
 | 🏔️ | **Avalanche** | A chain of steals rolls across the table, one person at a time. |
 | 🎰 | **Jackpot** | A random player takes a gift from BOTH neighbours. |
-| 🙈 | **Blindfold Heist** | Steal a gift with your eyes closed. The table may guide you. The table may lie. |
+| 🌿 | **Mistletoe** | You and a random guest get caught under the mistletoe and trade one gift each. |
 | 🥔 | **Hot Potato** | Your gift goes round the table to the left while everyone counts. It stops after 3 to 30 hands. |
 | 🦹 | **Master Thief** | Steal a gift from whoever has the most. |
 | 🫠 | **Global Warming** | Endgame only: every frozen gift melts. |
