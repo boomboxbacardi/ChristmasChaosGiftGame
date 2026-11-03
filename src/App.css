@@ -2158,3 +2158,28 @@ body[data-phase="endgame"] .app::before {
 .overlay__panel:focus-visible {
   outline: none;
 }
+
+/* ============ Headroom ============ */
+/* The top guest's hat (and the active glow) reach about 7% of the table size above the
+   table box, and the light garland hangs ~15px below the top bar. Reserve both, so the
+   guest at twelve o'clock is never tucked under the bar. */
+.round-table {
+  --headroom: 0.07;
+}
+.game__table .round-table {
+  margin-top: calc(min(100%, 680px) * var(--headroom));
+}
+@media (min-width: 981px) and (min-height: 560px) {
+  .game__table {
+    padding-top: 18px;
+  }
+  .game__table .round-table {
+    width: min(100cqw, 100cqh / (1 + var(--headroom)));
+    margin-top: calc(min(100cqw, 100cqh / (1 + var(--headroom))) * var(--headroom));
+  }
+}
+
+/* The needle's star sits on top of the wreath, so its tip is not hidden under the pine. */
+.round-table__needle {
+  z-index: 2;
+}
