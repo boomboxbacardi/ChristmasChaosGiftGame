@@ -70,7 +70,7 @@ The pile is always empty by the time everyone has used their three rolls. As the
 
 ### Phase 2 · ENDGAME (3 rolls each)
 
-![The endgame starts](docs/endgame-banner.jpg)
+![The endgame starts: three rolls by the fireplace](docs/endgame.webp)
 
 Big tables get bigger moments: **Ice Lock**, **Trash Trade** and **Santa's Hand** hit about one guest per five at the table (15 guests = 3 people act), one at a time so everyone can follow.
 
