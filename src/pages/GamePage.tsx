@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useChaosGame } from "../hooks/useChaosGame";
 import {
   EndScreen,
   EndgameBanner,
@@ -9,7 +8,9 @@ import {
   RulesModal,
   SetupTemplate,
   TopBar,
+  WinterScene,
 } from "../components";
+import { useChaosGame } from "../hooks/useChaosGame";
 
 export const GamePage = () => {
   const game = useChaosGame();
@@ -58,6 +59,7 @@ export const GamePage = () => {
 
   return (
     <div className={`app app--${phase} ${game.debug ? "app--debug" : ""}`}>
+      <WinterScene />
       <FxLayer />
       <TopBar
         game={game}
@@ -68,7 +70,13 @@ export const GamePage = () => {
       />
       {inGame ? <GameTemplate game={game} /> : <SetupTemplate game={game} />}
       <RulesModal isOpen={showRules} onClose={() => setShowRules(false)} t={t} />
-      <LogModal isOpen={showLog} onClose={() => setShowLog(false)} log={game.log} t={t} tm={game.tm} />
+      <LogModal
+        isOpen={showLog}
+        onClose={() => setShowLog(false)}
+        log={game.log}
+        t={t}
+        tm={game.tm}
+      />
       <EndgameBanner isOpen={game.banner === "endgame"} onClose={game.dismissBanner} t={t} />
       <EndScreen
         isOpen={game.showEnd}

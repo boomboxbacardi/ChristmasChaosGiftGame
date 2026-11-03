@@ -85,9 +85,7 @@ body[data-phase="endgame"] {
   --bg: #1a0405;
   --bg-2: #2a0710;
 }
-body[data-phase="endgame"]::after {
-  opacity: 1;
-}
+/* The endgame glow over the night scene lives in WinterScene (.winter__fire). */
 
 button,
 input {

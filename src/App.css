@@ -2136,24 +2136,57 @@ body[data-phase="endgame"] .round-table__center {
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
 }
 
-/* Snowdrifts along the bottom of the screen, behind everything. */
-.app::before {
-  content: "";
+/* ============ Winter night scene (WinterScene) ============ */
+.winter {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 7vh;
+  inset: 0;
   z-index: -1;
+  overflow: hidden;
   pointer-events: none;
-  opacity: 0.45;
-  background:
-    radial-gradient(38% 100% at 12% 100%, #e9f2f9 0 70%, transparent 71%),
-    radial-gradient(30% 75% at 46% 100%, #dbe8f3 0 70%, transparent 71%),
-    radial-gradient(40% 95% at 86% 100%, #eef5fa 0 70%, transparent 71%);
 }
-body[data-phase="endgame"] .app::before {
-  opacity: 0.35;
+.winter__layer,
+.winter__fire,
+.winter__shade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.winter__scene {
+  transform: translateZ(0);
+}
+.winter__twinkle,
+.winter__aurora,
+.winter__fire {
+  will-change: opacity;
+}
+.winter__twinkle {
+  animation: twinkle 2.4s ease-in-out infinite;
+}
+.winter__twinkle--b {
+  animation-delay: -1.2s;
+}
+.winter__aurora {
+  animation: aurora 9s ease-in-out infinite;
+}
+@keyframes aurora {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.9; }
+}
+/* Endgame: the whole night glows like a roaring fireplace. */
+.winter__fire {
+  opacity: 0;
+  transition: opacity 800ms ease;
+  background:
+    radial-gradient(130% 70% at 50% 110%, rgba(255, 110, 20, 0.6), transparent 65%),
+    linear-gradient(180deg, rgba(90, 8, 18, 0.55), rgba(60, 6, 0, 0.35));
+}
+body[data-phase="endgame"] .winter__fire {
+  opacity: 1;
+}
+/* A soft vignette keeps the middle calm so seats and text stay readable. */
+.winter__shade {
+  background: radial-gradient(ellipse at 42% 50%, rgba(3, 10, 20, 0.35), rgba(3, 10, 20, 0.15) 45%, rgba(3, 10, 20, 0.55));
 }
 .overlay__panel:focus-visible {
   outline: none;
