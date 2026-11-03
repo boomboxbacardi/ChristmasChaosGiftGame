@@ -6,6 +6,8 @@
 
 **Real gifts on the table. One screen running the show. Every roll can make you rich, broke or frozen.<br/>Nobody is safe. Not even Grandma.**
 
+Built for the living room: a cozy winter night, a red Christmas table in a pine wreath, Santa hats on every guest, and a big candy-cane roll button you can hit with the space bar.
+
 [**▶ Play it now**](https://christmas-chaos-gift-exchange.vercel.app/) · No sign-up · No backend · Works on phone, laptop and TV
 
 ![Christmas Chaos start screen](docs/hero.jpg)
@@ -24,7 +26,8 @@ You know the classic dice gift game. Pile of presents in the middle, everybody r
 - 🪑 **The app decides where you sit.** Your left and right neighbours suddenly matter a lot.
 - 🔦 **A spotlight picks the victim.** Watch the table light up while it decides who you rob.
 - 🧊 **Freeze your favourite gift** before someone flips your whole hand.
-- 🔥 **Two phases:** a greedy warm-up, then an ENDGAME where the table literally catches fire.
+- 🔥 **Two phases:** a greedy warm-up, then an ENDGAME by the fireplace where the table catches fire.
+- 📺 **Made for the TV.** Laptop on fullscreen, shared to the big screen: everything fits without scrolling and the roll button never moves.
 - ⭐ **Wildcards** with eight unhinged events: musical chairs, avalanches, mistletoe trades, hot potatoes…
 - ↔️ **Chaos across the table**, not just next door: gifts jump to the person opposite, relay through three players, and travel up to three seats.
 - ⚖️ **Balanced for real parties.** Rich players get robbed more, gifts drift towards empty hands, and a Christmas Miracle makes sure nobody leaves with nothing.
@@ -46,9 +49,13 @@ Seats go **clockwise**. Facing the middle of the table, the person clockwise fro
 4. The stage card tells you what to do, in plain words. Do it at the table.
 5. Next player. Repeat until the chaos is over. Open your gifts.
 
+![A few warm-up rolls in real time](docs/roll.webp)
+
 ![Warm-up in action](docs/warmup.jpg)
 
-### Phase 1 · Warm-up (at least 3 rolls each, extra rounds until the pile is empty)
+### Phase 1 · Warm-up (3 rolls each)
+
+The pile is always empty by the time everyone has used their three rolls. As the rolls run out, the app makes sure enough gifts leave the pile, so there is never an awkward extra round.
 
 | | Action | What happens |
 |---|---|---|
@@ -63,20 +70,26 @@ Seats go **clockwise**. Facing the middle of the table, the person clockwise fro
 
 ### Phase 2 · ENDGAME (3 rolls each)
 
+![The endgame starts: three rolls by the fireplace](docs/endgame.webp)
+
+Big tables get bigger moments: **Ice Lock**, **Trash Trade** and **Santa's Hand** hit about one guest per five at the table (15 guests = 3 people act), one at a time so everyone can follow.
+
 | | Action | What happens |
 |---|---|---|
-| 🧊 | **Ice Lock** | Freeze one of your gifts. Nobody can touch it again. |
+| 🧊 | **Ice Lock** | Freeze one of your gifts. Nobody can touch it again. More guests freeze at big tables. |
 | 🔄 | **Full Flip** | Swap ALL your unfrozen gifts with a random player. |
-| 🗑️ | **Trash Trade** | You and a random player swap one unwanted gift each. |
+| 🗑️ | **Trash Trade** | You and a random player swap one unwanted gift each. More pairs at big tables. |
 | 🃏 | **Joker Swap** | Two random players take one gift from each other. |
-| 🎅 | **Santa's Hand** | Give a gift away. The receiver picks which one. |
+| 🎅 | **Santa's Hand** | Give a gift away. The receiver picks which one. More givers at big tables. |
 | 🌪️ | **Twist of Fate** | Everyone passes ALL unfrozen gifts 1–3 seats left or right. |
 | 🏹 | **Robin Hood** | The richest player gives a gift to the poorest. |
 | ↔️ | **Cross-Table Flip** | Swap ALL unfrozen gifts with the person straight across. |
 
 ### ⭐ WILDCARD (both phases)
 
-The wildcard spins a second wheel of pure nonsense:
+The wildcard spins a second wheel of pure nonsense. Every wildcard plays out one person or one pair at a time, so a table of 15 never has to act all at once.
+
+![Musical Chairs wildcard](docs/wildcard.jpg)
 
 | | Wildcard | What happens |
 |---|---|---|
@@ -99,14 +112,15 @@ The app only offers actions that are actually possible (no stealing from empty h
 
 ## Balanced by simulation
 
-`pnpm simulate 15 30` plays 10,000 instant games with the real rules (15 guests, 30 gifts) and prints how the gifts end up. With the current tuning:
+`pnpm simulate 15 30` plays 5,000 instant games with the real rules (15 guests, 30 gifts) and prints how the gifts end up. With the current tuning:
 
 | | Old rules | Now |
 |---|---|---|
-| Someone ends with 0 gifts | 91% of games | 0% (26% of games need the Christmas Miracle) |
+| Pile empty after everyone's 3 warm-up rolls | not guaranteed | 100% of games |
+| Someone ends with 0 gifts | 91% of games | 0% (the Christmas Miracle steps in for the last empty hand in about 45% of games) |
 | Biggest hoard, typical | 5 | 3–4 |
-| Biggest hoard, worst seen | 10 | 7 |
-| Final hands | 0 (13%) · 1 (29%) · 2 (27%) · 3 (17%) · 4+ (15%) | 1 (24%) · 2 (54%) · 3 (19%) · 4+ (2%) |
+| Biggest hoard, worst seen | 10 | 6 |
+| Final hands | 0 (13%) · 1 (29%) · 2 (27%) · 3 (17%) · 4+ (15%) | 1 (31%) · 2 (42%) · 3 (24%) · 4+ (3%) |
 
 Try your own table size: `pnpm simulate <players> <gifts> <games>`.
 
