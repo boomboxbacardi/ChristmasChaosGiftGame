@@ -1725,7 +1725,7 @@ body[data-phase="endgame"] .round-table__beam {
   left: 50%;
   bottom: 50%;
   width: 3.2%;
-  height: 44%;
+  height: 35%;
   transform: translateX(-50%);
   border-radius: 999px 999px 4px 4px;
   background: repeating-linear-gradient(-45deg, #fff 0 6px, var(--red) 6px 12px);
@@ -1965,14 +1965,16 @@ body[data-phase="endgame"] .round-table__center {
   .game__table {
     position: relative;
     top: auto;
-    padding: 0;
+    /* Room for the light garland above and the Santa hats on the top seat. */
+    padding: 28px 0 4px;
     min-height: 0;
     container-type: size;
     display: grid;
     place-items: center;
   }
   .game__table .round-table {
-    width: min(100cqw, 100cqh);
+    width: min(100cqw, calc(100cqh - 36px));
+    margin-top: 36px;
     max-width: none;
   }
   .game__side {
